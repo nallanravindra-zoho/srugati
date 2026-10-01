@@ -1,0 +1,27 @@
+# Flutter / Dart
+srugati_app/build/
+srugati_app/.dart_tool/
+srugati_app/.flutter-plugins
+srugati_app/.flutter-plugins-dependencies
+srugati_app/.packages
+srugati_app/ios/Pods/
+srugati_app/ios/.symlinks/
+srugati_app/ios/Flutter/ephemeral/
+srugati_app/android/.gradle/
+srugati_app/android/app/build/
+srugati_app/android/local.properties
+srugati_app/**/*.iml
+srugati_app/.idea/
+
+# Android signing (never commit real keys)
+*.keystore
+*.jks
+key.properties
+
+# Python / FastAPI backend
+srugati_engine/**/__pycache__/
+srugati_engine/**/*.pyc
+srugati_engine/.venv/
+
+# macOS
+.DS_Store

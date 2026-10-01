@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+hypercorn[h2]
+python-multipart
+numpy
+aubio
+soundfile
