@@ -25,3 +25,12 @@ srugati_engine/.venv/
 
 # macOS
 .DS_Store
+
+# Vocal remover service: local-only state and heavy folders
+vocal_remover_service/infra/.terraform/
+vocal_remover_service/infra/terraform.tfstate*
+vocal_remover_service/infra/*.tfvars
+vocal_remover_service/local-validation/
+vocal_remover_service/frontend/node_modules/
+vocal_remover_service/frontend/dist/
+**/__pycache__/

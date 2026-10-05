@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -210,6 +211,15 @@ class LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Save to my device',
+                  onPressed: () => _saveToDevice(s),
+                  icon: Icon(
+                    Icons.download_rounded,
+                    color: AppColors.textSecondary,
+                    size: 22,
+                  ),
+                ),
+                IconButton(
                   onPressed: () {
                     s.favorite = !s.favorite;
                     SongStore.instance.update(s);
@@ -230,6 +240,24 @@ class LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveToDevice(SongRecord s) async {
+    final ext = p.extension(s.path).replaceFirst('.', '');
+    try {
+      await FileSaver.instance.saveAs(
+        name: s.name,
+        filePath: s.path,
+        fileExtension: ext.isEmpty ? 'm4a' : ext,
+        mimeType: MimeType.other,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save to that location")),
+        );
+      }
+    }
   }
 
   Widget _sectionTitle(String text) => Padding(

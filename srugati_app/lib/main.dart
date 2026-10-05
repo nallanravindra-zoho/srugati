@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'screens/splash_screen.dart';
+import 'services/take_recorder.dart';
 import 'services/theme_settings.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeSettings.load();
+  await TakeRecorder.loadSettings();
   runApp(const SruGatiApp());
 }
 

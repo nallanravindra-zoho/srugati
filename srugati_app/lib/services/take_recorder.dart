@@ -1,11 +1,11 @@
-import 'package:file_saver/file_saver.dart';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-import 'song_store.dart';
 import 'srugati_api.dart';
 
 /// Records the singer's microphone while a song plays. The take is mic-only
@@ -13,6 +13,36 @@ import 'srugati_api.dart';
 /// Library as its own recording.
 class TakeRecorder {
   TakeRecorder._();
+
+  /// How much earlier (ms) the vocal is placed in the mix. Singers hear the
+  /// song a little late (speaker/Bluetooth output) and the mic adds its own
+  /// delay, so the take trails the real song; this pulls it back. Remembered.
+  static int advanceMs = 150;
+
+  static Future<File> _settingsFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/take_settings.json');
+  }
+
+  static Future<void> loadSettings() async {
+    try {
+      final f = await _settingsFile();
+      if (await f.exists()) {
+        advanceMs =
+            ((jsonDecode(await f.readAsString()) as Map)['advanceMs'] as num)
+                .round();
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> _saveSettings() async {
+    try {
+      await (await _settingsFile()).writeAsString(
+        jsonEncode({'advanceMs': advanceMs}),
+      );
+    } catch (_) {}
+  }
+
   static final TakeRecorder instance = TakeRecorder._();
 
   final AudioRecorder _rec = AudioRecorder();
@@ -85,44 +115,84 @@ class TakeRecorder {
     final choice = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => SimpleDialog(
-        title: const Text(
-          'Save your vocal take?',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        children: [
-          if (trackPath != null)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, 'mix'),
-              child: const Text(
-                'Mix with the song',
-                style: TextStyle(fontSize: 18),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => SimpleDialog(
+          title: const Text(
+            'Save your vocal take?',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          children: [
+            if (trackPath != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Vocal timing',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setLocal(() => advanceMs -= 25),
+                      icon: const Icon(Icons.remove_circle_outline_rounded),
+                    ),
+                    SizedBox(
+                      width: 92,
+                      child: Text(
+                        advanceMs == 0
+                            ? 'exact'
+                            : '${advanceMs.abs()} ms ${advanceMs > 0 ? 'earlier' : 'later'}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setLocal(() => advanceMs += 25),
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'vocal'),
-            child: const Text('Vocal only', style: TextStyle(fontSize: 18)),
-          ),
-          if (trackPath != null)
+            if (trackPath != null)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, 'mix'),
+                child: const Text(
+                  'Mix with the song',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, 'both'),
-              child: const Text('Both', style: TextStyle(fontSize: 18)),
+              onPressed: () => Navigator.pop(ctx, 'vocal'),
+              child: const Text('Vocal only', style: TextStyle(fontSize: 18)),
             ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'discard'),
-            child: const Text('Discard', style: TextStyle(fontSize: 18)),
-          ),
-        ],
+            if (trackPath != null)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, 'both'),
+                child: const Text('Both', style: TextStyle(fontSize: 18)),
+              ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: const Text('Discard', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
       ),
     );
+    _saveSettings();
     if (choice == null || choice == 'discard' || !context.mounted) return;
     final stamp = DateTime.now();
     final when =
         '${stamp.day}-${stamp.month} ${stamp.hour}:${stamp.minute.toString().padLeft(2, '0')}';
     String? previewPath;
-    String previewName = 'Take - $songName $when';
     if (choice == 'vocal' || choice == 'both') {
-      await SongStore.instance.importFile(path, 'Take - $songName $when.m4a');
+      await _saveVersion(path, 'Take - $songName $when.m4a');
       previewPath = path;
     }
     if ((choice == 'mix' || choice == 'both') && trackPath != null) {
@@ -135,18 +205,26 @@ class TakeRecorder {
         startSongSec,
       );
       if (out != null) {
-        await SongStore.instance.importFile(out, 'Mix - $songName $when.m4a');
+        await _saveVersion(out, 'Mix - $songName $when.m4a');
         previewPath = out;
-        previewName = 'Mix - $songName $when';
       }
     }
     if (previewPath == null || !context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          _SavedPreviewDialog(path: previewPath!, name: previewName),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${choice == 'vocal' ? 'Take' : 'Mix'} saved to your Library',
+        ),
+      ),
     );
+  }
+
+  /// Saves into the Library's "Saved versions" (the app documents folder),
+  /// where each file gets an inline play button.
+  static Future<void> _saveVersion(String source, String name) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final safe = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+    await File(source).copy('${dir.path}/$safe');
   }
 
   /// Runs the server mix behind a dialog with a Cancel that also stops the
@@ -204,7 +282,7 @@ class TakeRecorder {
         semitones: semitones,
         tempo: tempo,
         // The track plays tempo-times faster, so a position in the song lands earlier in the mix.
-        vocalDelaySec: startSongSec / tempo,
+        vocalDelaySec: startSongSec / tempo - advanceMs / 1000,
         label: 'mix',
         outputPath: outPath,
         client: client,
@@ -223,104 +301,5 @@ class TakeRecorder {
       }
     }
     return cancelled ? null : result;
-  }
-}
-
-/// Shown after a take or mix is saved to the Library: plays the result so it
-/// can be checked, and can also copy it to a place the user picks on the device.
-class _SavedPreviewDialog extends StatefulWidget {
-  final String path;
-  final String name;
-  const _SavedPreviewDialog({required this.path, required this.name});
-
-  @override
-  State<_SavedPreviewDialog> createState() => _SavedPreviewDialogState();
-}
-
-class _SavedPreviewDialogState extends State<_SavedPreviewDialog> {
-  final AudioPlayer _player = AudioPlayer();
-  bool _playing = false;
-  String? _note;
-
-  @override
-  void initState() {
-    super.initState();
-    _player.playerStateStream.listen((s) {
-      if (!mounted) return;
-      final done = s.processingState == ProcessingState.completed;
-      setState(() => _playing = s.playing && !done);
-      if (done) {
-        _player.pause();
-        _player.seek(Duration.zero);
-      }
-    });
-    _player
-        .setFilePath(widget.path)
-        .then((_) => _player.play())
-        .catchError((_) {});
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveToDevice() async {
-    try {
-      await FileSaver.instance.saveAs(
-        name: widget.name,
-        filePath: widget.path,
-        fileExtension: 'm4a',
-        mimeType: MimeType.other,
-      );
-      if (mounted) setState(() => _note = 'Saved to the location you chose');
-    } catch (_) {
-      if (mounted) setState(() => _note = "Couldn't save to that location");
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        'Saved to your Library',
-        style: TextStyle(fontWeight: FontWeight.w800),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.name,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () => _playing ? _player.pause() : _player.play(),
-            icon: Icon(
-              _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            ),
-            label: Text(_playing ? 'Pause' : 'Play'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _saveToDevice,
-            icon: const Icon(Icons.download_rounded),
-            label: const Text('Save to my device…'),
-          ),
-          if (_note != null) ...[
-            const SizedBox(height: 10),
-            Text(_note!, style: const TextStyle(fontSize: 16)),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Done'),
-        ),
-      ],
-    );
   }
 }

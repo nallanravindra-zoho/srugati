@@ -23,6 +23,7 @@ import '../widgets/studio_sheets.dart';
 import '../widgets/theme_picker_sheet.dart';
 import '../widgets/waveform_view.dart';
 import '../services/take_recorder.dart';
+import '../widgets/help_note.dart';
 import 'home_shell.dart';
 import 'video_player_screen.dart';
 
@@ -102,9 +103,10 @@ class StudioScreenState extends State<StudioScreen>
     }
     if (!_enginePlaying) await _togglePlay();
     if (!mounted) return;
-    final startAt = _enginePosSec;
     if (await TakeRecorder.instance.start()) {
-      _takeStartSec = startAt;
+      // Read the position only once the mic is really running, so the take
+      // is matched to where the song is when recording actually begins.
+      _takeStartSec = _enginePosSec;
       _takeSemitones = totalSemitones;
       _takeTempo = tempo;
       setState(() => _taking = true);
@@ -127,6 +129,7 @@ class StudioScreenState extends State<StudioScreen>
       tempo: _takeTempo,
       startSongSec: _takeStartSec,
     );
+    libraryKey.currentState?.refresh();
   }
 
   // Metronome click scheduling + progressive training state.
@@ -1341,10 +1344,7 @@ class StudioScreenState extends State<StudioScreen>
         const SizedBox(height: 18),
         _buildSaveButton(),
         const SizedBox(height: 6),
-        Text(
-          _saveCaption,
-          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
+        Center(child: HelpNote(_saveCaption, title: 'Saving')),
       ],
     );
   }
@@ -1726,18 +1726,6 @@ class StudioScreenState extends State<StudioScreen>
           _openKeyTempo,
           active: _hasShift,
         ),
-        _quickAction(
-          Icons.record_voice_over_rounded,
-          'Voice',
-          _openNaturalVoice,
-          active: naturalVoice || isVideo,
-        ),
-        _quickAction(
-          Icons.timer_outlined,
-          'Metronome',
-          isVideo ? null : _openMetronome,
-          active: metronomeOn || _training,
-        ),
         _quickAction(Icons.more_horiz_rounded, 'More', _openMore),
       ],
     );
@@ -1783,72 +1771,99 @@ class StudioScreenState extends State<StudioScreen>
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              ListTile(
-                leading: Icon(
-                  song.favorite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: AppColors.purple,
-                ),
-                title: Text(
-                  song.favorite ? 'Remove from favorites' : 'Add to favorites',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  song.favorite = !song.favorite;
-                  setState(() {});
-                  _flushPersist();
-                },
-              ),
-              if (!analysed)
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
                 ListTile(
                   leading: Icon(
-                    Icons.graphic_eq_rounded,
+                    song.favorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     color: AppColors.purple,
                   ),
-                  title: const Text('Detect key & tempo'),
+                  title: Text(
+                    song.favorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites',
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _analyse(song, removeOnFail: false);
+                    song.favorite = !song.favorite;
+                    setState(() {});
+                    _flushPersist();
                   },
                 ),
-              ListTile(
-                leading: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: AppColors.purple,
+                ListTile(
+                  leading: Icon(Icons.timer_outlined, color: AppColors.purple),
+                  title: const Text('Metronome & training'),
+                  enabled: !isVideo,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openMetronome();
+                  },
                 ),
-                title: const Text('Remove vocals (stems)'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  homeTab.value = 3;
-                  removerKey.currentState?.startWithPath(song.path, song.name);
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.restart_alt_rounded,
-                  color: AppColors.purple,
+                ListTile(
+                  leading: Icon(
+                    Icons.record_voice_over_rounded,
+                    color: AppColors.purple,
+                  ),
+                  title: const Text('Natural Voice'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openNaturalVoice();
+                  },
                 ),
-                title: const Text('Reset key & tempo'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  resetShift();
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.close_rounded, color: AppColors.purple),
-                title: const Text('Close song'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _closeSong();
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+                if (!analysed)
+                  ListTile(
+                    leading: Icon(
+                      Icons.graphic_eq_rounded,
+                      color: AppColors.purple,
+                    ),
+                    title: const Text('Detect key & tempo'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _analyse(song, removeOnFail: false);
+                    },
+                  ),
+                ListTile(
+                  leading: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.purple,
+                  ),
+                  title: const Text('Remove vocals (stems)'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    homeTab.value = 3;
+                    removerKey.currentState?.startWithPath(
+                      song.path,
+                      song.name,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.restart_alt_rounded,
+                    color: AppColors.purple,
+                  ),
+                  title: const Text('Reset key & tempo'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    resetShift();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.close_rounded, color: AppColors.purple),
+                  title: const Text('Close song'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _closeSong();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),

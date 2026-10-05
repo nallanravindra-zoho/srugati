@@ -117,13 +117,17 @@ def mix_vocal_with_track(
     """
     pitch_ratio = 2 ** (semitones / 12.0)
     delay_ms = max(0, int(round(vocal_delay_sec * 1000)))
+    # A negative delay means the vocal must start before the track does:
+    # cut that much off the front of the take instead.
+    trim_sec = max(0.0, -vocal_delay_sec)
     track_chain = f"[0:a]aformat=channel_layouts=stereo,aresample={SAMPLE_RATE}"
     if abs(semitones) > 1e-6 or abs(tempo - 1.0) > 1e-6:
         track_chain += f",rubberband=pitch={pitch_ratio}:tempo={tempo}:formant=preserved"
     track_chain += f",volume={track_gain}[t]"
     vocal_chain = (
         f"[1:a]aformat=channel_layouts=stereo,aresample={SAMPLE_RATE},"
-        f"adelay={delay_ms}|{delay_ms},volume={vocal_gain}[v]"
+        + (f"atrim=start={trim_sec},asetpts=PTS-STARTPTS," if trim_sec > 0 else "")
+        + f"adelay={delay_ms}|{delay_ms},volume={vocal_gain}[v]"
     )
     graph = f"{track_chain};{vocal_chain};[t][v]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.97[o]"
     codec_args = ["-c:a", codec]

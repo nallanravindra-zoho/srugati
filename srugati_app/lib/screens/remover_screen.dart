@@ -9,7 +9,6 @@ import 'package:path/path.dart' as p;
 
 import '../services/song_store.dart';
 import '../services/take_recorder.dart';
-import '../widgets/help_note.dart';
 import '../services/srugati_api.dart' show SrugatiApiException;
 import '../services/stem_player_service.dart';
 import '../services/stem_store.dart';
@@ -133,9 +132,8 @@ class RemoverScreenState extends State<RemoverScreen> {
       return;
     }
     if (!_player.playing) await _player.play(from: _player.position);
-    final startAt = _player.position.inMilliseconds / 1000;
     if (await TakeRecorder.instance.start()) {
-      _takeStartSec = startAt;
+      _takeStartSec = _player.position.inMilliseconds / 1000;
       setState(() => _taking = true);
     }
   }
@@ -153,6 +151,7 @@ class RemoverScreenState extends State<RemoverScreen> {
       trackPath: _current?.instrumentalPath,
       startSongSec: _takeStartSec,
     );
+    libraryKey.currentState?.refresh();
   }
 
   /// Entry point for other screens (e.g. Studio's "Remove vocals").
@@ -685,10 +684,6 @@ class RemoverScreenState extends State<RemoverScreen> {
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 6),
-        HelpNote(
-          'AI separation in the cloud — then practise over a clean backing track.',
-        ),
         const SizedBox(height: 20),
         _glass(
           child: Row(
@@ -959,8 +954,6 @@ class RemoverScreenState extends State<RemoverScreen> {
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
         ),
-        const SizedBox(height: 6),
-        HelpNote('Cancelling also stops the work in the cloud.'),
       ],
     );
   }
@@ -1267,10 +1260,6 @@ class RemoverScreenState extends State<RemoverScreen> {
               label: 'Practise with the instrumental',
               icon: Icons.tune_rounded,
               onPressed: () => _practiceInStudio(result),
-            ),
-            const SizedBox(height: 6),
-            HelpNote(
-              'Opens the backing track in Studio so you can change its key and tempo.',
             ),
             const SizedBox(height: 14),
             Row(

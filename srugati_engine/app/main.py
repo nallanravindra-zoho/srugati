@@ -301,7 +301,7 @@ async def mix_take(
         raise HTTPException(400, "semitones must be between -24 and 24")
     if not (0.5 <= tempo <= 2.0):
         raise HTTPException(400, "tempo must be between 0.5 and 2.0")
-    if not (0.0 <= vocal_delay_sec <= 3600):
+    if not (-5.0 <= vocal_delay_sec <= 3600):
         raise HTTPException(400, "vocal_delay_sec out of range")
     vocal_gain = min(max(vocal_gain, 0.0), 3.0)
     track_gain = min(max(track_gain, 0.0), 3.0)
