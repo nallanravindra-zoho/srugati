@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'help_note.dart';
+
 import '../services/live_pitch_service.dart';
 import '../theme/app_theme.dart';
 
@@ -39,7 +42,7 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -48,7 +51,9 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
           builder: (context, _) {
             final position = _service.position;
             final total = _service.length;
-            final totalMs = total.inMilliseconds > 0 ? total.inMilliseconds.toDouble() : 1.0;
+            final totalMs = total.inMilliseconds > 0
+                ? total.inMilliseconds.toDouble()
+                : 1.0;
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -62,7 +67,10 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
                     SizedBox(
@@ -70,7 +78,10 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                       child: IconButton(
                         padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -79,14 +90,19 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 4,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 7,
+                    ),
                   ),
                   child: Slider(
-                    value: position.inMilliseconds.clamp(0, totalMs.toInt()).toDouble(),
+                    value: position.inMilliseconds
+                        .clamp(0, totalMs.toInt())
+                        .toDouble(),
                     max: totalMs,
                     activeColor: AppColors.purple,
                     inactiveColor: AppColors.surfaceMuted,
-                    onChanged: (v) => _service.seek(Duration(milliseconds: v.toInt())),
+                    onChanged: (v) =>
+                        _service.seek(Duration(milliseconds: v.toInt())),
                   ),
                 ),
                 Padding(
@@ -94,8 +110,20 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_fmt(position), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text(_fmt(total), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        _fmt(position),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        _fmt(total),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -107,9 +135,14 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                       iconSize: 34,
                       onPressed: () {
                         final target = position - const Duration(seconds: 10);
-                        _service.seek(target < Duration.zero ? Duration.zero : target);
+                        _service.seek(
+                          target < Duration.zero ? Duration.zero : target,
+                        );
                       },
-                      icon: const Icon(Icons.replay_10_rounded, color: AppColors.textPrimary),
+                      icon: const Icon(
+                        Icons.replay_10_rounded,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     InkWell(
@@ -118,8 +151,15 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                       child: Container(
                         width: 72,
                         height: 72,
-                        decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
-                        child: Icon(_service.playing ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 36),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _service.playing ? Icons.pause : Icons.play_arrow,
+                          color: Colors.white,
+                          size: 36,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -129,15 +169,16 @@ class _LivePlayerModalState extends State<LivePlayerModal> {
                         final target = position + const Duration(seconds: 10);
                         _service.seek(target > total ? total : target);
                       },
-                      icon: const Icon(Icons.forward_10_rounded, color: AppColors.textPrimary),
+                      icon: const Icon(
+                        Icons.forward_10_rounded,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                HelpNote(
                   'Pitch and tempo follow the sliders on Studio while this is open.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                 ),
               ],
             );

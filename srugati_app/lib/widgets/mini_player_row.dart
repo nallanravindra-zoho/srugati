@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+
 import '../services/player_service.dart';
 import '../theme/app_theme.dart';
 import 'player_modal.dart';
@@ -64,12 +65,19 @@ class MiniPlayerRow extends StatelessWidget {
                   return StreamBuilder<PlayerState>(
                     stream: service.playerStateStream,
                     builder: (context, snapshot) {
-                      final playing = isThis && (snapshot.data?.playing ?? false);
+                      final playing =
+                          isThis && (snapshot.data?.playing ?? false);
                       return Container(
                         width: 48,
                         height: 48,
-                        decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
-                        child: Icon(playing ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.brandGradient,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          playing ? Icons.pause : Icons.play_arrow,
+                          color: Colors.white,
+                        ),
                       );
                     },
                   );
@@ -90,14 +98,21 @@ class MiniPlayerRow extends StatelessWidget {
                 width: 36,
                 height: 36,
                 child: downloading
-                    ? const Padding(
+                    ? Padding(
                         padding: EdgeInsets.all(9),
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.purple),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.purple,
+                        ),
                       )
                     : InkWell(
                         borderRadius: BorderRadius.circular(18),
                         onTap: onDownload,
-                        child: const Icon(Icons.file_download_outlined, color: AppColors.textSecondary, size: 20),
+                        child: const Icon(
+                          Icons.file_download_outlined,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
                       ),
               ),
             InkWell(
@@ -105,7 +120,10 @@ class MiniPlayerRow extends StatelessWidget {
               onTap: () => _openModal(context),
               child: const Padding(
                 padding: EdgeInsets.all(8),
-                child: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],

@@ -1,11 +1,14 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
 import '../services/srugati_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/note_dial.dart';
+import 'home_shell.dart';
 
 /// A simple live-mic tuner: repeatedly records a short clip and sends it to
 /// the same pitch-detection endpoint the Studio screen uses, refreshing the
@@ -76,7 +79,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Practice')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Back',
+          onPressed: () => homeTab.value = 0,
+        ),
+        title: const Text('Practice'),
+      ),
       body: SafeArea(
         child: Center(
           child: Column(

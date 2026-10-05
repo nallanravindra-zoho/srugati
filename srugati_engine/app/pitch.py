@@ -80,26 +80,51 @@ def _waveform(samples: np.ndarray) -> list[float]:
     return [round(float(v), 3) for v in np.sqrt(peaks / top)]
 
 
-def _bpm(wav_path: str) -> float | None:
+def _bpm(wav_path: str) -> tuple[float | None, float | None]:
+    """Returns (bpm, beat_offset_sec): the tempo and where its beat grid starts."""
     hop, win = 512, 1024
     source = aubio.source(wav_path, 0, hop)
     tempo = aubio.tempo("default", win, hop, source.samplerate)
     max_frames = int(90 * source.samplerate / hop)
+    beats: list[float] = []
     frames = 0
     while frames < max_frames:
         samples, read = source()
         if read == 0:
             break
-        tempo(samples)
+        if tempo(samples):
+            beats.append(float(tempo.get_last_s()))
         frames += 1
     bpm = float(tempo.get_bpm())
     if bpm <= 0:
-        return None
+        return None, None
     while bpm < BPM_MIN:
         bpm *= 2
     while bpm > BPM_MAX:
         bpm /= 2
-    return round(bpm, 1)
+    return round(bpm, 1), _beat_offset(beats, 60.0 / bpm)
+
+
+def _beat_offset(beats: list[float], period: float) -> float | None:
+    """
+    Where, within one beat period, the detected beats cluster. Folding the
+    tempo can leave some detected beats between the real ones, so rather than
+    averaging everything this picks the densest cluster of phases.
+    """
+    if len(beats) < 6 or period <= 0:
+        return None
+    phases = np.array([b % period for b in beats])
+    window = period * 0.08
+
+    def circular_gap(a: np.ndarray, centre: float) -> np.ndarray:
+        d = np.abs(a - centre)
+        return np.minimum(d, period - d)
+
+    best = max(phases, key=lambda c: int((circular_gap(phases, c) <= window).sum()))
+    near = phases[circular_gap(phases, best) <= window]
+    angles = near / period * 2 * np.pi
+    mean = np.arctan2(np.sin(angles).mean(), np.cos(angles).mean())
+    return round(float((mean % (2 * np.pi)) / (2 * np.pi) * period), 3)
 
 
 def _key(samples: np.ndarray, sample_rate: int) -> dict | None:
@@ -144,10 +169,11 @@ def analyze(wav_path: str) -> dict:
         "durationSec": round(float(samples.size / sample_rate), 2),
         "waveform": _waveform(samples),
         "bpm": None,
+        "beatOffsetSec": None,
         "key": None,
     }
     try:
-        result["bpm"] = _bpm(wav_path)
+        result["bpm"], result["beatOffsetSec"] = _bpm(wav_path)
     except Exception:
         pass
     try:

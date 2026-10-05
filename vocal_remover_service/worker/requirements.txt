@@ -1,0 +1,11 @@
+# Installed explicitly in the Dockerfile (CPU wheels need a separate index
+# URL). Pins mirror the Dockerfile and target Linux x86_64 — on macOS
+# (arm64), use unpinned torch/torchaudio instead (see local-validation/).
+torch==2.5.1
+torchaudio==2.5.1
+demucs==4.0.1
+soundfile==0.12.1
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+google-cloud-storage==2.19.0
+google-cloud-firestore==2.20.0

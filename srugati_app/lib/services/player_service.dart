@@ -42,8 +42,10 @@ class PlayerService extends ChangeNotifier {
   Future<void> seekBy(Duration delta) async {
     final total = player.duration ?? Duration.zero;
     final target = player.position + delta;
-    await player.seek(target < Duration.zero
-        ? Duration.zero
-        : (target > total ? total : target));
+    await player.seek(
+      target < Duration.zero
+          ? Duration.zero
+          : (target > total ? total : target),
+    );
   }
 }

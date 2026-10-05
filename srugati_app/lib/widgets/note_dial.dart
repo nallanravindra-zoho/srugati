@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 /// Big circular readout for a detected note — the tuner-style focal point
@@ -35,7 +36,7 @@ class NoteDial extends StatelessWidget {
               value: hasResult ? confidence.clamp(0.0, 1.0) : 0,
               strokeWidth: 10,
               backgroundColor: AppColors.surfaceMuted,
-              valueColor: const AlwaysStoppedAnimation(AppColors.teal),
+              valueColor: AlwaysStoppedAnimation(AppColors.teal),
             ),
           ),
           Column(
@@ -51,8 +52,13 @@ class NoteDial extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                hasResult ? '${frequencyHz!.toStringAsFixed(1)} Hz' : 'Waiting…',
-                style: TextStyle(fontSize: size * 0.07, color: AppColors.textSecondary),
+                hasResult
+                    ? '${frequencyHz!.toStringAsFixed(1)} Hz'
+                    : 'Waiting…',
+                style: TextStyle(
+                  fontSize: size * 0.07,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),

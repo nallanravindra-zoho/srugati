@@ -1,7 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+
 import '../theme/app_theme.dart';
 
 /// Full-featured video playback for both the original upload and a
@@ -66,9 +68,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _seekBy(Duration delta) {
     final total = _controller.value.duration;
     final target = _controller.value.position + delta;
-    _controller.seekTo(target < Duration.zero
-        ? Duration.zero
-        : (target > total ? total : target));
+    _controller.seekTo(
+      target < Duration.zero
+          ? Duration.zero
+          : (target > total ? total : target),
+    );
   }
 
   void _toggleMute() {
@@ -111,7 +115,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         aspectRatio: _controller.value.aspectRatio,
                         child: VideoPlayer(_controller),
                       )
-                    : const CircularProgressIndicator(color: AppColors.teal),
+                    : CircularProgressIndicator(color: AppColors.teal),
               ),
               if (initialized && _controlsVisible)
                 Positioned(
@@ -149,19 +153,28 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
             ),
             child: Slider(
-              value: position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
+              value: position.inMilliseconds
+                  .clamp(0, duration.inMilliseconds)
+                  .toDouble(),
               min: 0,
               max: duration.inMilliseconds.toDouble().clamp(1, double.infinity),
               activeColor: AppColors.teal,
               inactiveColor: Colors.white24,
-              onChanged: (v) => _controller.seekTo(Duration(milliseconds: v.round())),
+              onChanged: (v) =>
+                  _controller.seekTo(Duration(milliseconds: v.round())),
             ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_fmt(position), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              Text(_fmt(duration), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(
+                _fmt(position),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              Text(
+                _fmt(duration),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -170,39 +183,59 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             children: [
               IconButton(
                 onPressed: _toggleMute,
-                icon: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: Colors.white),
+                icon: Icon(
+                  _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  color: Colors.white,
+                ),
               ),
               Row(
                 children: [
                   IconButton(
                     onPressed: () => _seekBy(const Duration(seconds: -10)),
-                    icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.replay_10_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                   Container(
                     width: 52,
                     height: 52,
                     margin: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.brandGradient,
+                      shape: BoxShape.circle,
+                    ),
                     child: IconButton(
                       onPressed: () => setState(() {
-                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                        _controller.value.isPlaying
+                            ? _controller.pause()
+                            : _controller.play();
                       }),
                       icon: Icon(
-                        _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                        _controller.value.isPlaying
+                            ? Icons.pause
+                            : Icons.play_arrow,
                         color: Colors.white,
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => _seekBy(const Duration(seconds: 10)),
-                    icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.forward_10_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ],
               ),
               IconButton(
                 onPressed: _toggleFullscreen,
                 icon: Icon(
-                  _fullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                  _fullscreen
+                      ? Icons.fullscreen_exit_rounded
+                      : Icons.fullscreen_rounded,
                   color: Colors.white,
                 ),
               ),

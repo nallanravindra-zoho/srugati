@@ -1,9 +1,12 @@
 """SruGati Engine — pitch detection + independent pitch/tempo shifting for any audio or video file."""
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import tempfile
+import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -80,13 +83,66 @@ def _delete_later(path: str) -> None:
     Path(path).unlink(missing_ok=True)
 
 
+# Running jobs the app can cancel by id (X-Job-Id header + POST /jobs/{id}/cancel).
+# A cancel that arrives before its job has started is remembered briefly.
+_JOBS: dict[str, threading.Event] = {}
+_EARLY_CANCELS: dict[str, float] = {}
+
+
+async def _run_cancellable(request: Request, work):
+    """
+    Runs the blocking [work(cancel)] in a thread. The work is abandoned (ffmpeg
+    killed, remaining steps skipped) if the app calls /jobs/{id}/cancel or the
+    client connection drops.
+    """
+    cancel = threading.Event()
+    job_id = request.headers.get("x-job-id")
+    if job_id:
+        _JOBS[job_id] = cancel
+        now = time.time()
+        for stale in [k for k, t in _EARLY_CANCELS.items() if now - t > 120]:
+            _EARLY_CANCELS.pop(stale, None)
+        if _EARLY_CANCELS.pop(job_id, None) is not None:
+            cancel.set()
+
+    async def watch():
+        while not cancel.is_set():
+            if await request.is_disconnected():
+                print("client disconnected; cancelling job", job_id)
+                cancel.set()
+                return
+            await asyncio.sleep(0.3)
+
+    watcher = asyncio.create_task(watch())
+    try:
+        result = await asyncio.to_thread(work, cancel)
+    finally:
+        watcher.cancel()
+        if job_id:
+            _JOBS.pop(job_id, None)
+    if cancel.is_set():
+        raise audio.Cancelled()
+    return result
+
+
+@app.post("/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str):
+    event = _JOBS.get(job_id)
+    if event is not None:
+        event.set()
+        print("job cancelled by app:", job_id)
+        return {"cancelled": True}
+    _EARLY_CANCELS[job_id] = time.time()
+    return {"cancelled": False, "queued": True}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
 @app.post("/pitch/detect")
-async def detect_pitch(file: UploadFile = File(...)):
+async def detect_pitch(request: Request, file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(400, "Missing filename")
 
@@ -101,21 +157,34 @@ async def detect_pitch(file: UploadFile = File(...)):
             raise HTTPException(413, "This file is too large — the limit is 100MB.")
         Path(in_path).write_bytes(contents)
 
-        try:
-            audio.decode_to_wav(in_path, wav_path)
-        except Exception:
-            raise HTTPException(400, "Could not read this file — try a different one.")
+        def work(cancel):
+            try:
+                audio.decode_to_wav(in_path, wav_path, cancel)
+            except audio.Cancelled:
+                raise
+            except Exception:
+                raise HTTPException(400, "Could not read this file — try a different one.")
+            if cancel.is_set():
+                raise audio.Cancelled()
+            result = pitch.detect(wav_path)
+            if cancel.is_set():
+                raise audio.Cancelled()
+            try:
+                result.update(pitch.analyze(wav_path))
+            except Exception:
+                pass
+            return result
 
-        result = pitch.detect(wav_path)
         try:
-            result.update(pitch.analyze(wav_path))
-        except Exception:
-            pass
-        return result
+            return await _run_cancellable(request, work)
+        except audio.Cancelled:
+            print("pitch/detect cancelled by client")
+            raise HTTPException(499, "Cancelled")
 
 
 @app.post("/pitch/shift")
 async def shift_pitch(
+    request: Request,
     file: UploadFile = File(...),
     semitones: float = Form(0.0),
     tempo: float = Form(1.0),
@@ -172,29 +241,105 @@ async def shift_pitch(
         decoded_wav = os.path.join(tmp, f"{uuid.uuid4()}.wav")
         shifted_audio = os.path.join(tmp, f"{uuid.uuid4()}_shifted.{audio_format}")
 
-        try:
-            audio.decode_to_wav(in_path, decoded_wav)
-            audio.shift_pitch_tempo(
-                decoded_wav, shifted_audio, semitones, tempo, preserve_formant, codec=audio_codec
-            )
-        except Exception:
-            raise HTTPException(400, "Could not process this file — try a different one.")
-
         out_path = _output_path(out_name)
 
-        if want_video:
+        def work(cancel):
             try:
-                audio.replace_audio_track(in_path, shifted_audio, str(out_path))
+                audio.decode_to_wav(in_path, decoded_wav, cancel)
+                audio.shift_pitch_tempo(
+                    decoded_wav, shifted_audio, semitones, tempo, preserve_formant, codec=audio_codec, cancel=cancel
+                )
+            except audio.Cancelled:
+                raise
             except Exception:
-                raise HTTPException(500, "Could not rebuild the video with the shifted audio.")
-            media_type = VIDEO_MEDIA_TYPES.get(container_ext, "video/mp4")
-        else:
-            Path(shifted_audio).rename(out_path)
-            media_type = audio_media_type
+                raise HTTPException(400, "Could not process this file — try a different one.")
+
+            if want_video:
+                try:
+                    audio.replace_audio_track(in_path, shifted_audio, str(out_path), cancel)
+                except audio.Cancelled:
+                    raise
+                except Exception:
+                    raise HTTPException(500, "Could not rebuild the video with the shifted audio.")
+            else:
+                Path(shifted_audio).rename(out_path)
+
+        try:
+            await _run_cancellable(request, work)
+        except audio.Cancelled:
+            Path(out_path).unlink(missing_ok=True)
+            print("pitch/shift cancelled by client")
+            raise HTTPException(499, "Cancelled")
+
+        media_type = VIDEO_MEDIA_TYPES.get(container_ext, "video/mp4") if want_video else audio_media_type
 
         return FileResponse(
             path=str(out_path),
             media_type=media_type,
+            filename=out_name,
+            background=BackgroundTask(_delete_later, str(out_path)),
+        )
+
+
+@app.post("/pitch/mix")
+async def mix_take(
+    request: Request,
+    track: UploadFile = File(...),
+    vocal: UploadFile = File(...),
+    semitones: float = Form(0.0),
+    tempo: float = Form(1.0),
+    vocal_delay_sec: float = Form(0.0),
+    vocal_gain: float = Form(1.0),
+    track_gain: float = Form(0.8),
+    label: str = Form("mix"),
+):
+    """Mixes a vocal take recorded on the phone with the backing track (shifted
+    to the pitch/tempo the singer used) and returns one m4a."""
+    if not track.filename or not vocal.filename:
+        raise HTTPException(400, "Missing filename")
+    if not (-24.0 <= semitones <= 24.0):
+        raise HTTPException(400, "semitones must be between -24 and 24")
+    if not (0.5 <= tempo <= 2.0):
+        raise HTTPException(400, "tempo must be between 0.5 and 2.0")
+    if not (0.0 <= vocal_delay_sec <= 3600):
+        raise HTTPException(400, "vocal_delay_sec out of range")
+    vocal_gain = min(max(vocal_gain, 0.0), 3.0)
+    track_gain = min(max(track_gain, 0.0), 3.0)
+
+    out_name = f"{re.sub(r'[^A-Za-z0-9]+', '', label) or 'mix'}_{_clean_name(Path(track.filename).stem)}.m4a"
+    with tempfile.TemporaryDirectory() as tmp:
+        track_path = os.path.join(tmp, f"{uuid.uuid4()}{_ext_of(track.filename)}")
+        vocal_path = os.path.join(tmp, f"{uuid.uuid4()}{_ext_of(vocal.filename)}")
+        track_bytes = await track.read()
+        vocal_bytes = await vocal.read()
+        if not track_bytes or not vocal_bytes:
+            raise HTTPException(400, "Empty file upload")
+        if len(track_bytes) > MAX_UPLOAD_BYTES or len(vocal_bytes) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "This file is too large — the limit is 100MB.")
+        Path(track_path).write_bytes(track_bytes)
+        Path(vocal_path).write_bytes(vocal_bytes)
+        out_path = _output_path(out_name)
+
+        def work(cancel):
+            try:
+                audio.mix_vocal_with_track(
+                    track_path, vocal_path, str(out_path), semitones, tempo,
+                    vocal_delay_sec, vocal_gain, track_gain, cancel=cancel,
+                )
+            except audio.Cancelled:
+                raise
+            except Exception:
+                raise HTTPException(400, "Could not mix these files — try again.")
+
+        try:
+            await _run_cancellable(request, work)
+        except audio.Cancelled:
+            Path(out_path).unlink(missing_ok=True)
+            raise HTTPException(499, "Cancelled")
+
+        return FileResponse(
+            path=str(out_path),
+            media_type="audio/mp4",
             filename=out_name,
             background=BackgroundTask(_delete_later, str(out_path)),
         )

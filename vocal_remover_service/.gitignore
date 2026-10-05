@@ -1,0 +1,23 @@
+.DS_Store
+node_modules/
+dist/
+*.log
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfvars
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local Demucs validation scratch (large venv + generated audio, not app code)
+local-validation/venv/
+local-validation/output/
+
+# Env files
+.env
+.env.local

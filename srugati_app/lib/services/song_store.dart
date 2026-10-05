@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -37,6 +38,15 @@ class SongRecord {
   int loopRepeats;
   List<SongMarker> markers;
 
+  /// Beat grid (from detection) and the metronome / training settings.
+  double? beatOffset;
+  bool metronomeOn;
+  double metronomeVolume;
+  double metronomeRate;
+  int trainStartPct;
+  int trainStepPct;
+  int trainRepeats;
+
   bool favorite;
   DateTime lastOpened;
 
@@ -59,59 +69,83 @@ class SongRecord {
     this.loopB,
     this.loopRepeats = 0,
     this.markers = const [],
+    this.beatOffset,
+    this.metronomeOn = false,
+    this.metronomeVolume = 0.8,
+    this.metronomeRate = 1.0,
+    this.trainStartPct = 70,
+    this.trainStepPct = 10,
+    this.trainRepeats = 2,
     this.favorite = false,
     DateTime? lastOpened,
   }) : lastOpened = lastOpened ?? DateTime.now();
 
-  bool get hasRecipe => semitones != 0 || cents != 0 || (tempo - 1.0).abs() > 1e-6;
+  bool get hasRecipe =>
+      semitones != 0 || cents != 0 || (tempo - 1.0).abs() > 1e-6;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'path': path,
-        'isVideo': isVideo,
-        'originalTonic': originalTonic,
-        'keyMode': keyMode,
-        'originalBpm': originalBpm,
-        'durationSec': durationSec,
-        'waveform': waveform,
-        'semitones': semitones,
-        'cents': cents,
-        'tempo': tempo,
-        'naturalVoice': naturalVoice,
-        'countInBeats': countInBeats,
-        'loopA': loopA,
-        'loopB': loopB,
-        'loopRepeats': loopRepeats,
-        'markers': markers.map((m) => m.toJson()).toList(),
-        'favorite': favorite,
-        'lastOpened': lastOpened.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'path': path,
+    'isVideo': isVideo,
+    'originalTonic': originalTonic,
+    'keyMode': keyMode,
+    'originalBpm': originalBpm,
+    'durationSec': durationSec,
+    'waveform': waveform,
+    'semitones': semitones,
+    'cents': cents,
+    'tempo': tempo,
+    'naturalVoice': naturalVoice,
+    'countInBeats': countInBeats,
+    'loopA': loopA,
+    'loopB': loopB,
+    'loopRepeats': loopRepeats,
+    'markers': markers.map((m) => m.toJson()).toList(),
+    'beatOffset': beatOffset,
+    'metronomeOn': metronomeOn,
+    'metronomeVolume': metronomeVolume,
+    'metronomeRate': metronomeRate,
+    'trainStartPct': trainStartPct,
+    'trainStepPct': trainStepPct,
+    'trainRepeats': trainRepeats,
+    'favorite': favorite,
+    'lastOpened': lastOpened.toIso8601String(),
+  };
 
   factory SongRecord.fromJson(Map<String, dynamic> j) => SongRecord(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        path: j['path'] as String,
-        isVideo: j['isVideo'] as bool? ?? false,
-        originalTonic: j['originalTonic'] as String?,
-        keyMode: j['keyMode'] as String?,
-        originalBpm: (j['originalBpm'] as num?)?.toDouble(),
-        durationSec: (j['durationSec'] as num?)?.toDouble(),
-        waveform: ((j['waveform'] as List?) ?? const []).map((v) => (v as num).toDouble()).toList(),
-        semitones: j['semitones'] as int? ?? 0,
-        cents: j['cents'] as int? ?? 0,
-        tempo: (j['tempo'] as num?)?.toDouble() ?? 1.0,
-        naturalVoice: j['naturalVoice'] as bool? ?? false,
-        countInBeats: j['countInBeats'] as int? ?? 0,
-        loopA: (j['loopA'] as num?)?.toDouble(),
-        loopB: (j['loopB'] as num?)?.toDouble(),
-        loopRepeats: j['loopRepeats'] as int? ?? 0,
-        markers: ((j['markers'] as List?) ?? const [])
-            .map((m) => SongMarker.fromJson(m as Map<String, dynamic>))
-            .toList(),
-        favorite: j['favorite'] as bool? ?? false,
-        lastOpened: DateTime.tryParse(j['lastOpened'] as String? ?? ''),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    path: j['path'] as String,
+    isVideo: j['isVideo'] as bool? ?? false,
+    originalTonic: j['originalTonic'] as String?,
+    keyMode: j['keyMode'] as String?,
+    originalBpm: (j['originalBpm'] as num?)?.toDouble(),
+    durationSec: (j['durationSec'] as num?)?.toDouble(),
+    waveform: ((j['waveform'] as List?) ?? const [])
+        .map((v) => (v as num).toDouble())
+        .toList(),
+    semitones: j['semitones'] as int? ?? 0,
+    cents: j['cents'] as int? ?? 0,
+    tempo: (j['tempo'] as num?)?.toDouble() ?? 1.0,
+    naturalVoice: j['naturalVoice'] as bool? ?? false,
+    countInBeats: j['countInBeats'] as int? ?? 0,
+    loopA: (j['loopA'] as num?)?.toDouble(),
+    loopB: (j['loopB'] as num?)?.toDouble(),
+    loopRepeats: j['loopRepeats'] as int? ?? 0,
+    markers: ((j['markers'] as List?) ?? const [])
+        .map((m) => SongMarker.fromJson(m as Map<String, dynamic>))
+        .toList(),
+    beatOffset: (j['beatOffset'] as num?)?.toDouble(),
+    metronomeOn: j['metronomeOn'] as bool? ?? false,
+    metronomeVolume: (j['metronomeVolume'] as num?)?.toDouble() ?? 0.8,
+    metronomeRate: (j['metronomeRate'] as num?)?.toDouble() ?? 1.0,
+    trainStartPct: j['trainStartPct'] as int? ?? 70,
+    trainStepPct: j['trainStepPct'] as int? ?? 10,
+    trainRepeats: j['trainRepeats'] as int? ?? 2,
+    favorite: j['favorite'] as bool? ?? false,
+    lastOpened: DateTime.tryParse(j['lastOpened'] as String? ?? ''),
+  );
 }
 
 class SongStore extends ChangeNotifier {
@@ -122,8 +156,8 @@ class SongStore extends ChangeNotifier {
   bool _loaded = false;
 
   List<SongRecord> get songs => List.unmodifiable(
-        _songs.toList()..sort((a, b) => b.lastOpened.compareTo(a.lastOpened)),
-      );
+    _songs.toList()..sort((a, b) => b.lastOpened.compareTo(a.lastOpened)),
+  );
 
   Future<File> _indexFile() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -139,7 +173,11 @@ class SongStore extends ChangeNotifier {
         final list = jsonDecode(await file.readAsString()) as List;
         _songs
           ..clear()
-          ..addAll(list.map((e) => SongRecord.fromJson(e as Map<String, dynamic>)).where((s) => File(s.path).existsSync()));
+          ..addAll(
+            list
+                .map((e) => SongRecord.fromJson(e as Map<String, dynamic>))
+                .where((s) => File(s.path).existsSync()),
+          );
         notifyListeners();
       }
     } catch (_) {
@@ -149,7 +187,9 @@ class SongStore extends ChangeNotifier {
 
   Future<void> _save() async {
     final file = await _indexFile();
-    await file.writeAsString(jsonEncode(_songs.map((s) => s.toJson()).toList()));
+    await file.writeAsString(
+      jsonEncode(_songs.map((s) => s.toJson()).toList()),
+    );
   }
 
   SongRecord? byId(String id) {

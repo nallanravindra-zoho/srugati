@@ -1,21 +1,26 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
 import '../services/song_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_song_panel.dart';
 import '../widgets/mini_player_row.dart';
 import '../widgets/note_chip_row.dart';
+import '../widgets/theme_picker_sheet.dart';
 import 'home_shell.dart';
 import 'video_player_screen.dart';
 
 const _videoExtensions = {'.mp4', '.mov', '.mkv', '.webm', '.avi'};
 const _audioExtensions = {'.m4a', '.mp3', '.wav', '.aac', '.flac', '.ogg'};
 
-bool _isVideoFile(String path) => _videoExtensions.contains(p.extension(path).toLowerCase());
+bool _isVideoFile(String path) =>
+    _videoExtensions.contains(p.extension(path).toLowerCase());
 bool _isMediaFile(String path) =>
-    _isVideoFile(path) || _audioExtensions.contains(p.extension(path).toLowerCase());
+    _isVideoFile(path) ||
+    _audioExtensions.contains(p.extension(path).toLowerCase());
 
 enum _Filter { all, practice, favorites }
 
@@ -41,8 +46,14 @@ class LibraryScreenState extends State<LibraryScreen> {
   /// Reloads the rendered "saved versions" (files produced by Save).
   Future<void> refresh() async {
     final dir = await getApplicationDocumentsDirectory();
-    final entries = dir.listSync().whereType<File>().where((f) => _isMediaFile(f.path)).toList();
-    entries.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+    final entries = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => _isMediaFile(f.path))
+        .toList();
+    entries.sort(
+      (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+    );
     if (mounted) setState(() => _versions = entries);
   }
 
@@ -61,13 +72,19 @@ class LibraryScreenState extends State<LibraryScreen> {
   String _recipeLabel(SongRecord s) {
     final base = s.originalTonic ?? '—';
     if (!s.hasRecipe) {
-      final bpm = s.originalBpm == null ? '' : ' · ${s.originalBpm!.round()} BPM';
+      final bpm = s.originalBpm == null
+          ? ''
+          : ' · ${s.originalBpm!.round()} BPM';
       return '$base$bpm';
     }
     final idx = kNoteNames.indexOf(base);
-    final now = idx < 0 ? base : kNoteNames[((idx + s.semitones) % 12 + 12) % 12];
+    final now = idx < 0
+        ? base
+        : kNoteNames[((idx + s.semitones) % 12 + 12) % 12];
     final cents = s.cents == 0 ? '' : ' ${s.cents > 0 ? '+' : ''}${s.cents}¢';
-    final bpm = s.originalBpm == null ? '' : ' · ${(s.originalBpm! * s.tempo).round()} BPM';
+    final bpm = s.originalBpm == null
+        ? ''
+        : ' · ${(s.originalBpm! * s.tempo).round()} BPM';
     return '$base → $now$cents$bpm';
   }
 
@@ -77,7 +94,8 @@ class LibraryScreenState extends State<LibraryScreen> {
       if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
       return switch (_filter) {
         _Filter.all => true,
-        _Filter.practice => s.hasRecipe || s.loopA != null || s.markers.isNotEmpty,
+        _Filter.practice =>
+          s.hasRecipe || s.loopA != null || s.markers.isNotEmpty,
         _Filter.favorites => s.favorite,
       };
     }).toList();
@@ -100,7 +118,7 @@ class LibraryScreenState extends State<LibraryScreen> {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w700,
-              fontSize: 13,
+              fontSize: 14,
               color: selected ? Colors.white : AppColors.textSecondary,
             ),
           ),
@@ -116,18 +134,32 @@ class LibraryScreenState extends State<LibraryScreen> {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(20)),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withValues(alpha: 0.25),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: Colors.redAccent,
+        ),
       ),
       confirmDismiss: (_) async =>
           await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
               title: const Text('Remove song?'),
-              content: Text('“${s.name}” and its saved settings will be removed from your Library.'),
+              content: Text(
+                '“${s.name}” and its saved settings will be removed from your Library.',
+              ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Remove'),
+                ),
               ],
             ),
           ) ??
@@ -146,17 +178,34 @@ class LibraryScreenState extends State<LibraryScreen> {
                 Container(
                   width: 52,
                   height: 52,
-                  decoration: BoxDecoration(gradient: AppColors.brandGradient, borderRadius: BorderRadius.circular(14)),
-                  child: Icon(s.isVideo ? Icons.movie_rounded : Icons.music_note_rounded, color: Colors.white),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    s.isVideo ? Icons.movie_rounded : Icons.music_note_rounded,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        s.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       const SizedBox(height: 3),
-                      Text(_recipeLabel(s), style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                      Text(
+                        _recipeLabel(s),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -166,8 +215,12 @@ class LibraryScreenState extends State<LibraryScreen> {
                     SongStore.instance.update(s);
                   },
                   icon: Icon(
-                    s.favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    color: s.favorite ? AppColors.purple : AppColors.textSecondary,
+                    s.favorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: s.favorite
+                        ? AppColors.purple
+                        : AppColors.textSecondary,
                     size: 20,
                   ),
                 ),
@@ -180,17 +233,34 @@ class LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(top: 22, bottom: 10),
-        child: Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-      );
+    padding: const EdgeInsets.only(top: 22, bottom: 10),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Back',
+          onPressed: () => homeTab.value = 0,
+        ),
         title: const Text('Library'),
         actions: [
-          IconButton(onPressed: _addSong, icon: const Icon(Icons.add_rounded, color: AppColors.purple)),
+          IconButton(
+            tooltip: 'Theme',
+            onPressed: () => ThemePickerSheet.show(context),
+            icon: Icon(Icons.palette_outlined, color: AppColors.purple),
+          ),
+          IconButton(
+            onPressed: _addSong,
+            icon: Icon(Icons.add_rounded, color: AppColors.purple),
+          ),
         ],
       ),
       body: ListenableBuilder(
@@ -206,10 +276,16 @@ class LibraryScreenState extends State<LibraryScreen> {
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: 'Search songs',
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                     filled: true,
                     fillColor: AppColors.surface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
                 ),
@@ -221,19 +297,26 @@ class LibraryScreenState extends State<LibraryScreen> {
                     _filterChip('Favorites', _Filter.favorites),
                   ],
                 ),
-                _sectionTitle(_filter == _Filter.all && _query.isEmpty ? 'Recent' : 'Songs'),
+                _sectionTitle(
+                  _filter == _Filter.all && _query.isEmpty ? 'Recent' : 'Songs',
+                ),
                 if (songs.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                       child: Text(
-                        SongStore.instance.songs.isEmpty ? 'No songs yet — tap + to add one' : 'No songs match',
+                        SongStore.instance.songs.isEmpty
+                            ? 'No songs yet — tap + to add one'
+                            : 'No songs match',
                         style: const TextStyle(color: AppColors.textSecondary),
                       ),
                     ),
                   )
                 else
-                  for (final s in songs) ...[_songTile(s), const SizedBox(height: 10)],
+                  for (final s in songs) ...[
+                    _songTile(s),
+                    const SizedBox(height: 10),
+                  ],
                 if (_versions.isNotEmpty) ...[
                   _sectionTitle('Saved versions'),
                   for (final f in _versions) ...[
@@ -242,18 +325,36 @@ class LibraryScreenState extends State<LibraryScreen> {
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(20),
                         child: ListTile(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          leading: const Icon(Icons.video_library_rounded, color: AppColors.purple),
-                          title: Text(p.basename(f.path), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: const Icon(Icons.play_circle_fill_rounded, color: AppColors.teal),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          leading: Icon(
+                            Icons.video_library_rounded,
+                            color: AppColors.purple,
+                          ),
+                          title: Text(
+                            p.basename(f.path),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: AppColors.teal,
+                          ),
                           onTap: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => VideoPlayerScreen(path: f.path)),
+                            MaterialPageRoute(
+                              builder: (_) => VideoPlayerScreen(path: f.path),
+                            ),
                           ),
                         ),
                       )
                     else
-                      MiniPlayerRow(key: ValueKey(f.path), path: f.path, title: p.basename(f.path)),
+                      MiniPlayerRow(
+                        key: ValueKey(f.path),
+                        path: f.path,
+                        title: p.basename(f.path),
+                      ),
                     const SizedBox(height: 10),
                   ],
                 ],

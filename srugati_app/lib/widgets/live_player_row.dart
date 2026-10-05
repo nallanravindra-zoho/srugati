@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/live_pitch_service.dart';
 import '../theme/app_theme.dart';
 import 'live_player_modal.dart';
@@ -32,8 +33,14 @@ class LivePlayerRow extends StatelessWidget {
                 builder: (context, _) => Container(
                   width: 48,
                   height: 48,
-                  decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
-                  child: Icon(service.playing ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    service.playing ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -51,11 +58,16 @@ class LivePlayerRow extends StatelessWidget {
               builder: (context, _) => AnimatedOpacity(
                 opacity: service.playing ? 1 : 0.4,
                 duration: const Duration(milliseconds: 200),
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
                     'LIVE',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: AppColors.teal, letterSpacing: 0.5),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: AppColors.teal,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -65,7 +77,10 @@ class LivePlayerRow extends StatelessWidget {
               onTap: () => LivePlayerModal.show(context, title: title),
               child: const Padding(
                 padding: EdgeInsets.all(8),
-                child: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],

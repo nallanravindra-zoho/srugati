@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 class GradientButton extends StatelessWidget {
@@ -6,7 +7,12 @@ class GradientButton extends StatelessWidget {
   final IconData? icon;
   final VoidCallback? onPressed;
 
-  const GradientButton({super.key, required this.label, this.icon, this.onPressed});
+  const GradientButton({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {

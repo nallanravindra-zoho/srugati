@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import 'song_store.dart';
 
 /// What the Studio bottom sheets (Key & Tempo, Natural Voice, Loop & Markers)
@@ -10,6 +11,8 @@ abstract class StudioController {
   bool get isVideo;
 
   // Key
+  /// False until key/tempo detection has run for this song.
+  bool get analysed;
   String get originalKey;
   String get currentNote;
   String get currentKeyLabel;
@@ -24,11 +27,35 @@ abstract class StudioController {
   double get originalBpm;
   double get currentBpm;
   void setTempo(double ratio);
-  void setOriginalBpm(double bpm);
   int get countInBeats;
   void setCountIn(int beats);
 
   void resetShift();
+
+  // Metronome (beat grid comes from detection; click is fired from playback position)
+  bool get metronomeOn;
+  double get metronomeVolume;
+  double get metronomeRate;
+  int get beatNudgeMs;
+  void setMetronomeOn(bool on);
+  void setMetronomeVolume(double v);
+  void setMetronomeRate(double rate);
+  void nudgeBeat(int deltaMs);
+  void tapClick();
+
+  // Progressive tempo training (repeats the loop, or the whole song, stepping up)
+  bool get training;
+  int get trainStartPct;
+  int get trainStepPct;
+  int get trainRepeats;
+  int get trainCurrentPct;
+  int get trainPass;
+  bool get hasLoop;
+  void setTrainStart(int pct);
+  void setTrainStep(int pct);
+  void setTrainRepeats(int n);
+  void startTraining();
+  void stopTraining();
 
   // Natural Voice
   bool get naturalVoice;

@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'audio_engine.dart';
 
 /// Singleton live pitch/tempo engine for Studio's instant preview: plays a
 /// file through the SoLoud engine (via flutter_soloud) so pitch (semitones,
@@ -29,12 +32,19 @@ class LivePitchService extends ChangeNotifier {
   Timer? _positionTicker;
   AudioSource? _click;
 
+  /// Live frequency-band levels (0..1) of what's playing right now; empty
+  /// when nothing is playing. Drives the waveform's real-time animation.
+  final ValueNotifier<List<double>> spectrum = ValueNotifier<List<double>>(
+    const [],
+  );
+
   bool get playing => _playing;
   String? get loadedPath => _loadedPath;
   bool isLoaded(String path) => _loadedPath == path;
   bool get hasHandle => _handle != null;
 
-  Duration get length => _source == null ? Duration.zero : SoLoud.instance.getLength(_source!);
+  Duration get length =>
+      _source == null ? Duration.zero : SoLoud.instance.getLength(_source!);
 
   Duration get position {
     final handle = _handle;
@@ -47,9 +57,37 @@ class LivePitchService extends ChangeNotifier {
   }
 
   Future<void> _ensureEngine() async {
+    await AudioEngine.ensure();
     if (_engineReady) return;
-    await SoLoud.instance.init();
     _engineReady = true;
+    SoLoud.instance.audioVisualizationEvents.listen(_onVisualization);
+  }
+
+  static const _bands = 32;
+
+  void _onVisualization(AudioVisualizationData data) {
+    final fft = data.fftData;
+    if (!_playing || fft == null || fft.isEmpty) {
+      if (spectrum.value.isNotEmpty) spectrum.value = const [];
+      return;
+    }
+    final previous = spectrum.value;
+    final bands = List<double>.filled(_bands, 0);
+    for (var b = 0; b < _bands; b++) {
+      final from = pow(fft.length, b / _bands).floor().clamp(0, fft.length - 1);
+      final to = pow(
+        fft.length,
+        (b + 1) / _bands,
+      ).ceil().clamp(from + 1, fft.length);
+      var sum = 0.0;
+      for (var i = from; i < to; i++) {
+        sum += fft[i];
+      }
+      final level = (sqrt(sum / (to - from)) * 2.4).clamp(0.0, 1.0);
+      final old = previous.length == _bands ? previous[b] : 0.0;
+      bands[b] = max(level, old * 0.78);
+    }
+    spectrum.value = bands;
   }
 
   /// Loads [path] ready for playback. Safe to call repeatedly; a no-op if
@@ -89,6 +127,7 @@ class LivePitchService extends ChangeNotifier {
     if (_playing && _voiceEnded()) {
       _handle = null;
       _playing = false;
+      spectrum.value = const [];
       _stopTicker();
       notifyListeners();
     }
@@ -123,6 +162,7 @@ class LivePitchService extends ChangeNotifier {
     if (handle == null) return;
     SoLoud.instance.setPause(handle, true);
     _playing = false;
+    spectrum.value = const [];
     _stopTicker();
     notifyListeners();
   }
@@ -158,7 +198,10 @@ class LivePitchService extends ChangeNotifier {
 
   void _startTicker() {
     _positionTicker?.cancel();
-    _positionTicker = Timer.periodic(const Duration(milliseconds: 250), (_) => notifyListeners());
+    _positionTicker = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) => notifyListeners(),
+    );
   }
 
   void _stopTicker() {
@@ -188,15 +231,28 @@ class LivePitchService extends ChangeNotifier {
     final tempoCompensation = 1.0 / _tempo;
 
     SoLoud.instance.setRelativePlaySpeed(handle, _tempo);
-    pitchFilter.shift(soundHandle: handle).value = semitoneFactor * tempoCompensation;
+    pitchFilter.shift(soundHandle: handle).value =
+        semitoneFactor * tempoCompensation;
   }
 
   /// One metronome-style click (used for the count-in), through the same
   /// audio engine so it never fights with the player for the output device.
-  Future<void> playClick({bool accent = false}) async {
+  Future<void> playClick({bool accent = false, double volume = 1.0}) async {
+    await preloadClick();
+    clickNow(accent: accent, volume: volume);
+  }
+
+  /// Loads the click sample ahead of time so the metronome can fire it with
+  /// no await in the way.
+  Future<void> preloadClick() async {
     await _ensureEngine();
     _click ??= await SoLoud.instance.loadFile(await _clickFile());
-    SoLoud.instance.play(_click!, volume: accent ? 1.0 : 0.7);
+  }
+
+  void clickNow({bool accent = false, double volume = 1.0}) {
+    final click = _click;
+    if (click == null) return;
+    SoLoud.instance.play(click, volume: (accent ? 1.0 : 0.7) * volume);
   }
 
   Future<String> _clickFile() async {

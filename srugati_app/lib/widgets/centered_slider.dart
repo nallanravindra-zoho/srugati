@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 /// A pitch-wheel-style slider: zero sits dead center, dragging right of
@@ -40,7 +41,8 @@ class CenteredSlider extends StatelessWidget {
         }
 
         return GestureDetector(
-          onHorizontalDragUpdate: (details) => handleDrag(details.localPosition),
+          onHorizontalDragUpdate: (details) =>
+              handleDrag(details.localPosition),
           onHorizontalDragEnd: (_) => onChangeEnd?.call(value),
           onTapDown: (details) => handleDrag(details.localPosition),
           onTapUp: (_) => onChangeEnd?.call(value),
@@ -73,7 +75,11 @@ class CenteredSlider extends StatelessWidget {
                 // Center (zero) tick.
                 Positioned(
                   left: zeroX - 1,
-                  child: Container(width: 2, height: 16, color: AppColors.textSecondary),
+                  child: Container(
+                    width: 2,
+                    height: 16,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 // Thumb.
                 Positioned(
@@ -85,7 +91,12 @@ class CenteredSlider extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: AppColors.surface,
                       border: Border.all(color: AppColors.purple, width: 2),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+
 import 'package:http/http.dart' as http;
 
 class PitchResult {
@@ -10,6 +12,7 @@ class PitchResult {
   final int? octave;
   final double? cents;
   final double? bpm;
+  final double? beatOffsetSec;
   final String? keyTonic;
   final String? keyMode;
   final double? durationSec;
@@ -22,6 +25,7 @@ class PitchResult {
     required this.octave,
     required this.cents,
     this.bpm,
+    this.beatOffsetSec,
     this.keyTonic,
     this.keyMode,
     this.durationSec,
@@ -41,10 +45,13 @@ class PitchResult {
       octave: json['octave'] as int?,
       cents: (json['cents'] as num?)?.toDouble(),
       bpm: (json['bpm'] as num?)?.toDouble(),
+      beatOffsetSec: (json['beatOffsetSec'] as num?)?.toDouble(),
       keyTonic: key?['tonic'] as String?,
       keyMode: key?['mode'] as String?,
       durationSec: (json['durationSec'] as num?)?.toDouble(),
-      waveform: ((json['waveform'] as List?) ?? const []).map((v) => (v as num).toDouble()).toList(),
+      waveform: ((json['waveform'] as List?) ?? const [])
+          .map((v) => (v as num).toDouble())
+          .toList(),
     );
   }
 }
@@ -70,9 +77,12 @@ String _friendlyServerError(int statusCode, String body) {
   } catch (_) {
     // Not JSON (e.g. an infra error page) — fall through to a generic message.
   }
-  if (statusCode == 413) return "This file is too large — please choose one under 100MB.";
-  if (statusCode >= 500) return "Something went wrong on the server. Please try again.";
-  if (statusCode == 400) return "Could not process this file — please try a different one.";
+  if (statusCode == 413)
+    return "This file is too large — please choose one under 100MB.";
+  if (statusCode >= 500)
+    return "Something went wrong on the server. Please try again.";
+  if (statusCode == 400)
+    return "Could not process this file — please try a different one.";
   return "Something went wrong. Please try again.";
 }
 
@@ -84,32 +94,55 @@ class SrugatiApi {
     defaultValue: 'https://srugati-engine-236220033725.us-central1.run.app',
   );
 
-  static Future<PitchResult> detectPitch(String filePath) async {
+  static Future<PitchResult> detectPitch(
+    String filePath, {
+    http.Client? client,
+    String? jobId,
+  }) async {
+    final ownsClient = client == null;
+    final c = client ?? http.Client();
     try {
       final size = await File(filePath).length();
       if (size > maxUploadBytes) {
-        throw const SrugatiApiException("This file is too large — please choose one under 100MB.");
+        throw const SrugatiApiException(
+          "This file is too large — please choose one under 100MB.",
+        );
       }
 
       final uri = Uri.parse('$baseUrl/pitch/detect');
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('file', filePath));
+      if (jobId != null) request.headers['X-Job-Id'] = jobId;
 
-      final streamed = await request.send().timeout(const Duration(minutes: 3));
+      final streamed = await c
+          .send(request)
+          .timeout(const Duration(minutes: 3));
       final body = await streamed.stream.bytesToString();
 
       if (streamed.statusCode != 200) {
-        throw SrugatiApiException(_friendlyServerError(streamed.statusCode, body));
+        throw SrugatiApiException(
+          _friendlyServerError(streamed.statusCode, body),
+        );
       }
       return PitchResult.fromJson(jsonDecode(body) as Map<String, dynamic>);
     } on SrugatiApiException {
       rethrow;
+    } on http.ClientException {
+      rethrow;
     } on TimeoutException {
-      throw const SrugatiApiException("The server took too long to respond. Please try again.");
+      throw const SrugatiApiException(
+        "The server took too long to respond. Please try again.",
+      );
     } on SocketException {
-      throw const SrugatiApiException("Couldn't reach the server — check your connection and try again.");
+      throw const SrugatiApiException(
+        "Couldn't reach the server — check your connection and try again.",
+      );
     } catch (_) {
-      throw const SrugatiApiException("Something went wrong. Please try again.");
+      throw const SrugatiApiException(
+        "Something went wrong. Please try again.",
+      );
+    } finally {
+      if (ownsClient) c.close();
     }
   }
 
@@ -137,6 +170,7 @@ class SrugatiApi {
     String want = 'auto',
     String outputFormat = 'auto',
     http.Client? client,
+    String? jobId,
     Duration timeout = const Duration(minutes: 10),
   }) async {
     final ownsClient = client == null;
@@ -144,7 +178,9 @@ class SrugatiApi {
     try {
       final size = await File(filePath).length();
       if (size > maxUploadBytes) {
-        throw const SrugatiApiException("This file is too large — please choose one under 100MB.");
+        throw const SrugatiApiException(
+          "This file is too large — please choose one under 100MB.",
+        );
       }
 
       final uri = Uri.parse('$baseUrl/pitch/shift');
@@ -156,11 +192,14 @@ class SrugatiApi {
         ..fields['want'] = want
         ..fields['output_format'] = outputFormat
         ..files.add(await http.MultipartFile.fromPath('file', filePath));
+      if (jobId != null) request.headers['X-Job-Id'] = jobId;
 
       final streamed = await c.send(request).timeout(timeout);
       if (streamed.statusCode != 200) {
         final body = await streamed.stream.bytesToString();
-        throw SrugatiApiException(_friendlyServerError(streamed.statusCode, body));
+        throw SrugatiApiException(
+          _friendlyServerError(streamed.statusCode, body),
+        );
       }
 
       final bytes = await streamed.stream.toBytes();
@@ -173,13 +212,94 @@ class SrugatiApi {
     } on http.ClientException {
       rethrow;
     } on TimeoutException {
-      throw const SrugatiApiException("The server took too long to respond. Please try again.");
+      throw const SrugatiApiException(
+        "The server took too long to respond. Please try again.",
+      );
     } on SocketException {
-      throw const SrugatiApiException("Couldn't reach the server — check your connection and try again.");
+      throw const SrugatiApiException(
+        "Couldn't reach the server — check your connection and try again.",
+      );
     } catch (_) {
-      throw const SrugatiApiException("Something went wrong. Please try again.");
+      throw const SrugatiApiException(
+        "Something went wrong. Please try again.",
+      );
     } finally {
       if (ownsClient) c.close();
     }
+  }
+
+  /// Mixes a vocal take with its backing track on the server (the track gets
+  /// [semitones]/[tempo]; the vocal starts [vocalDelaySec] into the result).
+  static Future<String> mix({
+    required String trackPath,
+    required String vocalPath,
+    required double semitones,
+    required double tempo,
+    required double vocalDelaySec,
+    required String label,
+    required String outputPath,
+    double vocalGain = 1.0,
+    double trackGain = 0.8,
+    required http.Client client,
+    String? jobId,
+  }) async {
+    try {
+      final request =
+          http.MultipartRequest('POST', Uri.parse('$baseUrl/pitch/mix'))
+            ..fields['semitones'] = semitones.toString()
+            ..fields['tempo'] = tempo.toString()
+            ..fields['vocal_delay_sec'] = vocalDelaySec.toString()
+            ..fields['vocal_gain'] = vocalGain.toString()
+            ..fields['track_gain'] = trackGain.toString()
+            ..fields['label'] = label
+            ..files.add(await http.MultipartFile.fromPath('track', trackPath))
+            ..files.add(await http.MultipartFile.fromPath('vocal', vocalPath));
+      if (jobId != null) request.headers['X-Job-Id'] = jobId;
+      final streamed = await client
+          .send(request)
+          .timeout(const Duration(minutes: 10));
+      if (streamed.statusCode != 200) {
+        final body = await streamed.stream.bytesToString();
+        throw SrugatiApiException(
+          _friendlyServerError(streamed.statusCode, body),
+        );
+      }
+      final bytes = await streamed.stream.toBytes();
+      final out = File(outputPath);
+      await out.parent.create(recursive: true);
+      await out.writeAsBytes(bytes, flush: true);
+      return out.path;
+    } on SrugatiApiException {
+      rethrow;
+    } on http.ClientException {
+      rethrow;
+    } on TimeoutException {
+      throw const SrugatiApiException(
+        'The server took too long to respond. Please try again.',
+      );
+    } on SocketException {
+      throw const SrugatiApiException(
+        "Couldn't reach the server — check your connection and try again.",
+      );
+    } catch (_) {
+      throw const SrugatiApiException(
+        'Something went wrong. Please try again.',
+      );
+    }
+  }
+
+  /// A unique id the server can use to find (and stop) this job.
+  static String newJobId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 30)}';
+
+  /// Tells the server to abandon a running job. Fire-and-forget: if the
+  /// request doesn't get through, closing the connection still stops it
+  /// on the app side.
+  static Future<void> cancelJob(String jobId) async {
+    try {
+      await http
+          .post(Uri.parse('$baseUrl/jobs/$jobId/cancel'))
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {}
   }
 }

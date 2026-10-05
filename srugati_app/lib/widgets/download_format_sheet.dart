@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 enum DownloadKind { audio, video }
@@ -20,7 +21,10 @@ class DownloadFormatSheet extends StatefulWidget {
   final bool isVideo;
   const DownloadFormatSheet({super.key, required this.isVideo});
 
-  static Future<DownloadChoice?> show(BuildContext context, {required bool isVideo}) {
+  static Future<DownloadChoice?> show(
+    BuildContext context, {
+    required bool isVideo,
+  }) {
     return showModalBottomSheet<DownloadChoice>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -47,7 +51,7 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -61,7 +65,10 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
                   IconButton(
                     padding: EdgeInsets.zero,
                     onPressed: () => setState(() => _kind = null),
-                    icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                   )
                 else
                   const SizedBox(width: 40),
@@ -69,7 +76,10 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
                   child: Text(
                     kind == null ? 'Download' : 'Download as',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
                   ),
                 ),
                 SizedBox(
@@ -77,7 +87,10 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -91,20 +104,20 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
   }
 
   List<Widget> _kindTiles() => [
-        _Tile(
-          icon: Icons.audiotrack_rounded,
-          title: 'Audio',
-          subtitle: 'Just the shifted sound track',
-          onTap: () => setState(() => _kind = DownloadKind.audio),
-        ),
-        const SizedBox(height: 10),
-        _Tile(
-          icon: Icons.videocam_rounded,
-          title: 'Video',
-          subtitle: 'The shifted audio muxed back into the video',
-          onTap: () => setState(() => _kind = DownloadKind.video),
-        ),
-      ];
+    _Tile(
+      icon: Icons.audiotrack_rounded,
+      title: 'Audio',
+      subtitle: 'Just the shifted sound track',
+      onTap: () => setState(() => _kind = DownloadKind.audio),
+    ),
+    const SizedBox(height: 10),
+    _Tile(
+      icon: Icons.videocam_rounded,
+      title: 'Video',
+      subtitle: 'The shifted audio muxed back into the video',
+      onTap: () => setState(() => _kind = DownloadKind.video),
+    ),
+  ];
 
   List<Widget> _formatTiles(DownloadKind kind) {
     if (kind == DownloadKind.audio) {
@@ -113,21 +126,27 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
           icon: Icons.music_note_rounded,
           title: 'MP3',
           subtitle: 'Smaller file, plays everywhere',
-          onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.audio, 'mp3')),
+          onTap: () =>
+              Navigator.of(context)
+                  .pop(const DownloadChoice(DownloadKind.audio, 'mp3')),
         ),
         const SizedBox(height: 10),
         _Tile(
           icon: Icons.graphic_eq_rounded,
           title: 'WAV',
           subtitle: 'Uncompressed — largest file, top quality',
-          onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.audio, 'wav')),
+          onTap: () =>
+              Navigator.of(context)
+                  .pop(const DownloadChoice(DownloadKind.audio, 'wav')),
         ),
         const SizedBox(height: 10),
         _Tile(
           icon: Icons.high_quality_rounded,
           title: 'M4A',
           subtitle: 'Compressed, good quality (same as in-app playback)',
-          onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.audio, 'm4a')),
+          onTap: () =>
+              Navigator.of(context)
+                  .pop(const DownloadChoice(DownloadKind.audio, 'm4a')),
         ),
       ];
     }
@@ -136,21 +155,27 @@ class _DownloadFormatSheetState extends State<DownloadFormatSheet> {
         icon: Icons.movie_rounded,
         title: 'Same as original',
         subtitle: 'Keep the upload\'s original video format',
-        onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.video, 'auto')),
+        onTap: () =>
+            Navigator.of(context)
+                .pop(const DownloadChoice(DownloadKind.video, 'auto')),
       ),
       const SizedBox(height: 10),
       _Tile(
         icon: Icons.movie_rounded,
         title: 'MP4',
         subtitle: 'Most widely compatible',
-        onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.video, 'mp4')),
+        onTap: () =>
+            Navigator.of(context)
+                .pop(const DownloadChoice(DownloadKind.video, 'mp4')),
       ),
       const SizedBox(height: 10),
       _Tile(
         icon: Icons.movie_rounded,
         title: 'MOV',
         subtitle: 'Apple / QuickTime format',
-        onTap: () => Navigator.of(context).pop(const DownloadChoice(DownloadKind.video, 'mov')),
+        onTap: () =>
+            Navigator.of(context)
+                .pop(const DownloadChoice(DownloadKind.video, 'mov')),
       ),
     ];
   }
@@ -162,7 +187,12 @@ class _Tile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _Tile({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const _Tile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +209,10 @@ class _Tile extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(icon, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
@@ -187,12 +220,27 @@ class _Tile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                    Text(subtitle, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 enum ImportSource { files, deviceMusic, record }
@@ -17,7 +18,7 @@ class AddSongPanel extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -29,10 +30,21 @@ class AddSongPanel extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Expanded(child: Text('Add Song', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+                  const Expanded(
+                    child: Text(
+                      'Add Song',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                   IconButton(
                     onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -58,7 +70,13 @@ class AddSongPanel extends StatelessWidget {
               children: [
                 Icon(icon, color: AppColors.purple, size: 26),
                 const SizedBox(height: 8),
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
               ],
             ),
           ),
@@ -68,15 +86,15 @@ class AddSongPanel extends StatelessWidget {
   }
 
   Widget _check(String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            const Icon(Icons.check_rounded, size: 18, color: AppColors.teal),
-            const SizedBox(width: 10),
-            Text(label, style: const TextStyle(fontSize: 13.5)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        Icon(Icons.check_rounded, size: 18, color: AppColors.teal),
+        const SizedBox(width: 10),
+        Text(label, style: const TextStyle(fontSize: 14)),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -96,20 +114,36 @@ class AddSongPanel extends StatelessWidget {
               Container(
                 width: 64,
                 height: 64,
-                decoration: const BoxDecoration(gradient: AppColors.brandGradient, shape: BoxShape.circle),
-                child: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 30),
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.cloud_upload_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 14),
-              const Text('Add a song', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text(
+                'Add a song',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 4),
-              const Text('Audio or video — choose where from',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              const Text(
+                'Audio or video — choose where from',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
               const SizedBox(height: 18),
               Row(
                 children: [
                   _tile(Icons.folder_rounded, 'Files', ImportSource.files),
                   const SizedBox(width: 10),
-                  _tile(Icons.library_music_rounded, 'Device Music', ImportSource.deviceMusic),
+                  _tile(
+                    Icons.library_music_rounded,
+                    'Device Music',
+                    ImportSource.deviceMusic,
+                  ),
                   const SizedBox(width: 10),
                   _tile(Icons.mic_rounded, 'Record', ImportSource.record),
                 ],
@@ -120,12 +154,17 @@ class AddSongPanel extends StatelessWidget {
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('After adding, we’ll automatically detect:',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+              const Text(
+                'After adding, we’ll automatically detect:',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 12),
               _check('Key / Pitch'),
               _check('BPM (tempo)'),
