@@ -24,7 +24,7 @@ class SruGatiApp extends StatelessWidget {
     return MaterialApp(
       title: 'SruGati',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: AppTheme.dark,
       scrollBehavior: _NoStretchScrollBehavior(),
       home: const SplashScreen(),
     );

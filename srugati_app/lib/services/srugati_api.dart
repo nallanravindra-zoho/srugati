@@ -9,6 +9,11 @@ class PitchResult {
   final String? note;
   final int? octave;
   final double? cents;
+  final double? bpm;
+  final String? keyTonic;
+  final String? keyMode;
+  final double? durationSec;
+  final List<double> waveform;
 
   PitchResult({
     required this.frequencyHz,
@@ -16,15 +21,30 @@ class PitchResult {
     required this.note,
     required this.octave,
     required this.cents,
+    this.bpm,
+    this.keyTonic,
+    this.keyMode,
+    this.durationSec,
+    this.waveform = const [],
   });
 
+  /// The song's tonic as shown to the user: the estimated key when the
+  /// server could work one out, otherwise the dominant detected pitch.
+  String? get tonic => keyTonic ?? note;
+
   factory PitchResult.fromJson(Map<String, dynamic> json) {
+    final key = json['key'] as Map<String, dynamic>?;
     return PitchResult(
       frequencyHz: (json['frequencyHz'] as num?)?.toDouble(),
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       note: json['note'] as String?,
       octave: json['octave'] as int?,
       cents: (json['cents'] as num?)?.toDouble(),
+      bpm: (json['bpm'] as num?)?.toDouble(),
+      keyTonic: key?['tonic'] as String?,
+      keyMode: key?['mode'] as String?,
+      durationSec: (json['durationSec'] as num?)?.toDouble(),
+      waveform: ((json['waveform'] as List?) ?? const []).map((v) => (v as num).toDouble()).toList(),
     );
   }
 }

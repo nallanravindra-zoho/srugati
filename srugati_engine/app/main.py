@@ -106,7 +106,12 @@ async def detect_pitch(file: UploadFile = File(...)):
         except Exception:
             raise HTTPException(400, "Could not read this file — try a different one.")
 
-        return pitch.detect(wav_path)
+        result = pitch.detect(wav_path)
+        try:
+            result.update(pitch.analyze(wav_path))
+        except Exception:
+            pass
+        return result
 
 
 @app.post("/pitch/shift")

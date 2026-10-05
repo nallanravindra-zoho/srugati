@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// SruGati brand tokens — "Midnight Indigo / Gold" (wireframe variant B).
-/// Names kept as `purple`/`teal` for minimal call-site churn, but they now
-/// hold the indigo/gold palette, not literal purple/teal.
+/// SruGati brand tokens — premium dark navy base with soft purple-blue
+/// accents (the Music Practice brief's direction). `teal` is the mint
+/// "active / confirmed" accent; `purple`/`purpleDeep` form the brand gradient.
 class AppColors {
   AppColors._();
 
-  static const purple = Color(0xFF2E2560);
-  static const purpleDeep = Color(0xFF4A3D8F);
-  static const teal = Color(0xFFE8B84B);
-  static const tealLight = Color(0xFFF0CC7A);
+  static const purple = Color(0xFF9A8CFF);
+  static const purpleDeep = Color(0xFF6C5CE7);
+  static const teal = Color(0xFF5BE3B0);
+  static const tealLight = Color(0xFF8FF0CB);
+  static const warning = Color(0xFFFFB454);
 
-  static const background = Color(0xFFF5F3FB);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceMuted = Color(0xFFE7E2F2);
+  static const background = Color(0xFF0A0E2A);
+  static const surface = Color(0xFF131A45);
+  static const surfaceMuted = Color(0xFF1E2760);
 
-  static const textPrimary = Color(0xFF1B1730);
-  static const textSecondary = Color(0xFF6E6B85);
+  static const textPrimary = Color(0xFFF1F2FF);
+  static const textSecondary = Color(0xFF9CA6DC);
 
   static const brandGradient = LinearGradient(
     colors: [purple, purpleDeep],
@@ -35,8 +36,8 @@ class AppColors {
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light {
-    final base = ThemeData.light(useMaterial3: true);
+  static ThemeData get dark {
+    final base = ThemeData.dark(useMaterial3: true);
     final textTheme = GoogleFonts.manropeTextTheme(base.textTheme).apply(
       bodyColor: AppColors.textPrimary,
       displayColor: AppColors.textPrimary,
@@ -49,6 +50,7 @@ class AppTheme {
         primary: AppColors.purple,
         secondary: AppColors.teal,
         surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
@@ -62,18 +64,21 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
       sliderTheme: SliderThemeData(
         activeTrackColor: AppColors.purple,
         inactiveTrackColor: AppColors.surfaceMuted,
-        thumbColor: AppColors.teal,
-        overlayColor: AppColors.teal.withValues(alpha: 0.15),
+        thumbColor: AppColors.purple,
+        overlayColor: AppColors.purple.withValues(alpha: 0.15),
       ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.purple,
-        unselectedItemColor: AppColors.textSecondary,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.all(Colors.white),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? AppColors.purpleDeep : AppColors.surfaceMuted,
+        ),
       ),
     );
   }
