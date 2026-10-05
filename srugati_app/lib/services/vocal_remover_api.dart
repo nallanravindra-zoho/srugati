@@ -43,7 +43,7 @@ class StemJob {
 class VocalRemoverApi {
   static const String baseUrl = String.fromEnvironment(
     'VOCAL_REMOVER_API_URL',
-    defaultValue: 'https://vocal-remover-api-971205881162.us-central1.run.app',
+    defaultValue: 'https://vocal-remover-api-up4pbk6s4a-uc.a.run.app',
   );
 
   static const maxUploadBytes = 500 * 1024 * 1024;

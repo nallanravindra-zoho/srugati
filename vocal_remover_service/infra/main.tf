@@ -262,36 +262,3 @@ resource "google_cloud_run_v2_service" "worker" {
 
 # No public IAM binding is granted on the worker service — only the
 # Pub/Sub push identity (bound above) can invoke it.
-
-# --- Cloud Run: frontend (static build served via nginx, public) ---
-
-resource "google_cloud_run_v2_service" "frontend" {
-  name                = "vocal-remover-frontend"
-  location            = var.region
-  deletion_protection = false
-  ingress  = "INGRESS_TRAFFIC_ALL"
-
-  template {
-    containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/vocal-remover/frontend:latest"
-      resources {
-        limits = {
-          cpu    = "1"
-          memory = "512Mi"
-        }
-      }
-    }
-
-    scaling {
-      min_instance_count = 0
-      max_instance_count = 5
-    }
-  }
-}
-
-resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
-  name     = google_cloud_run_v2_service.frontend.name
-  location = var.region
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}

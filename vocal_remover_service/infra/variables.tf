@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
-  default     = "vocal-remover-app-6892"
+  default     = "srugati-app"
 }
 
 variable "region" {

@@ -7,7 +7,7 @@
 # builds+pushes images, then applies the rest.
 set -euo pipefail
 
-PROJECT_ID="vocal-remover-app-6892"
+PROJECT_ID="srugati-app"
 REGION="us-central1"
 REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/vocal-remover"
 

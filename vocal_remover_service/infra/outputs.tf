@@ -6,10 +6,6 @@ output "worker_url" {
   value = google_cloud_run_v2_service.worker.uri
 }
 
-output "frontend_url" {
-  value = google_cloud_run_v2_service.frontend.uri
-}
-
 output "uploads_bucket" {
   value = google_storage_bucket.uploads.name
 }

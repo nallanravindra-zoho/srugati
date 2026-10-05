@@ -1,4 +1,6 @@
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -117,8 +119,11 @@ class TakeRecorder {
     final stamp = DateTime.now();
     final when =
         '${stamp.day}-${stamp.month} ${stamp.hour}:${stamp.minute.toString().padLeft(2, '0')}';
+    String? previewPath;
+    String previewName = 'Take - $songName $when';
     if (choice == 'vocal' || choice == 'both') {
       await SongStore.instance.importFile(path, 'Take - $songName $when.m4a');
+      previewPath = path;
     }
     if ((choice == 'mix' || choice == 'both') && trackPath != null) {
       final out = await _mixOnServer(
@@ -129,13 +134,19 @@ class TakeRecorder {
         tempo,
         startSongSec,
       );
-      if (out != null)
+      if (out != null) {
         await SongStore.instance.importFile(out, 'Mix - $songName $when.m4a');
+        previewPath = out;
+        previewName = 'Mix - $songName $when';
+      }
     }
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Saved to your Library')));
-    }
+    if (previewPath == null || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          _SavedPreviewDialog(path: previewPath!, name: previewName),
+    );
   }
 
   /// Runs the server mix behind a dialog with a Cancel that also stops the
@@ -212,5 +223,104 @@ class TakeRecorder {
       }
     }
     return cancelled ? null : result;
+  }
+}
+
+/// Shown after a take or mix is saved to the Library: plays the result so it
+/// can be checked, and can also copy it to a place the user picks on the device.
+class _SavedPreviewDialog extends StatefulWidget {
+  final String path;
+  final String name;
+  const _SavedPreviewDialog({required this.path, required this.name});
+
+  @override
+  State<_SavedPreviewDialog> createState() => _SavedPreviewDialogState();
+}
+
+class _SavedPreviewDialogState extends State<_SavedPreviewDialog> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _playing = false;
+  String? _note;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.playerStateStream.listen((s) {
+      if (!mounted) return;
+      final done = s.processingState == ProcessingState.completed;
+      setState(() => _playing = s.playing && !done);
+      if (done) {
+        _player.pause();
+        _player.seek(Duration.zero);
+      }
+    });
+    _player
+        .setFilePath(widget.path)
+        .then((_) => _player.play())
+        .catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveToDevice() async {
+    try {
+      await FileSaver.instance.saveAs(
+        name: widget.name,
+        filePath: widget.path,
+        fileExtension: 'm4a',
+        mimeType: MimeType.other,
+      );
+      if (mounted) setState(() => _note = 'Saved to the location you chose');
+    } catch (_) {
+      if (mounted) setState(() => _note = "Couldn't save to that location");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text(
+        'Saved to your Library',
+        style: TextStyle(fontWeight: FontWeight.w800),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.name,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => _playing ? _player.pause() : _player.play(),
+            icon: Icon(
+              _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            ),
+            label: Text(_playing ? 'Pause' : 'Play'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _saveToDevice,
+            icon: const Icon(Icons.download_rounded),
+            label: const Text('Save to my device…'),
+          ),
+          if (_note != null) ...[
+            const SizedBox(height: 10),
+            Text(_note!, style: const TextStyle(fontSize: 16)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Done'),
+        ),
+      ],
+    );
   }
 }

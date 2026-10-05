@@ -115,6 +115,7 @@ class StudioScreenState extends State<StudioScreen>
   Future<void> _finishTake() async {
     if (!_taking) return;
     setState(() => _taking = false);
+    _enginePause();
     final path = await TakeRecorder.instance.stop();
     if (!mounted || path == null) return;
     await TakeRecorder.askToSave(

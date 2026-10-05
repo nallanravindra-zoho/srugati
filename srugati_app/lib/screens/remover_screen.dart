@@ -143,6 +143,7 @@ class RemoverScreenState extends State<RemoverScreen> {
   Future<void> _finishTake() async {
     if (!_taking) return;
     setState(() => _taking = false);
+    _player.pause();
     final path = await TakeRecorder.instance.stop();
     if (!mounted || path == null) return;
     await TakeRecorder.askToSave(
