@@ -15,11 +15,11 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  static const _morphDuration = Duration(milliseconds: 1100);
   late VideoPlayerController _controller;
-  late final AnimationController _morph = AnimationController(
+  static const _zoomDuration = Duration(milliseconds: 700);
+  late final AnimationController _zoom = AnimationController(
     vsync: this,
-    duration: _morphDuration,
+    duration: _zoomDuration,
   );
   // Slow clock for the drifting music symbols that fill the whole screen.
   late final AnimationController _notes = AnimationController(
@@ -31,6 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+
     _controller = VideoPlayerController.asset('assets/srugati1.mp4')
       ..initialize().then((_) {
         if (!mounted) return;
@@ -48,22 +49,27 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  /// Pitch dial: the logo shrinks away and a note dial turns from A to B (a
-  /// two-semitone shift), then settles into the Studio's upload badge while
-  /// the Studio fades in. Both run on the same 1.1 s clock.
+  /// Zoom through: the logo grows toward the viewer and fades while the
+  /// Studio eases in from slightly smaller. Both run on the same 0.7 s clock.
   void _goToHome() {
-    _morph.forward();
+    _zoom.forward();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: _morphDuration,
+        transitionDuration: _zoomDuration,
         pageBuilder: (_, __, ___) => const HomeShell(),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          opacity: CurvedAnimation(
+        transitionsBuilder: (_, animation, __, child) {
+          final e = CurvedAnimation(
             parent: animation,
-            curve: const Interval(0.6, 0.92, curve: Curves.easeInOut),
-          ),
-          child: child,
-        ),
+            curve: const Interval(0.1, 0.9, curve: Curves.easeInOut),
+          );
+          return FadeTransition(
+            opacity: e,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.92, end: 1.0).animate(e),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }
@@ -72,20 +78,21 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _controller.removeListener(_checkVideoFinished);
     _controller.dispose();
-    _morph.dispose();
+    _zoom.dispose();
     _notes.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final morph = _morph;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: AnimatedBuilder(
-        animation: Listenable.merge([morph, _notes]),
+        animation: Listenable.merge([_zoom, _notes]),
         builder: (context, _) {
-          final p = morph.value;
+          final p = _zoom.value;
+          final gone = 1 - _smooth(p, 0.1, 0.6); // logo fades as it grows
+          final grow = _lerp(1, 2.4, _smooth(p, 0.1, 0.9));
           if (!_controller.value.isInitialized) {
             return const Center(
               child: CircularProgressIndicator(color: Colors.white),
@@ -111,14 +118,14 @@ class _SplashScreenState extends State<SplashScreen>
                       painter: _NotesPainter(
                         t: _notes.value,
                         color: AppColors.purple,
-                        fade: 1 - _smooth(p, 0.3, 0.9),
+                        fade: gone,
                       ),
                     ),
                   ),
                   Positioned.fromRect(
                     rect: videoRect,
-                    // Fade the video's top and bottom edges into the symbols
-                    // so there is no visible seam where it ends.
+                    // Fade the video's top and bottom edges into the
+                    // symbols so there is no visible seam where it ends.
                     child: ShaderMask(
                       blendMode: BlendMode.dstIn,
                       shaderCallback: (b) => const LinearGradient(
@@ -133,26 +140,14 @@ class _SplashScreenState extends State<SplashScreen>
                         stops: [0.0, 0.1, 0.9, 1.0],
                       ).createShader(b),
                       child: Opacity(
-                        opacity: 1 - _smooth(p, 0, 0.2),
+                        opacity: gone,
                         child: Transform.scale(
-                          scale: _lerp(1, 0.8, _smooth(p, 0, 0.2)),
+                          scale: grow,
                           child: VideoPlayer(_controller),
                         ),
                       ),
                     ),
                   ),
-                  if (p > 0)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _PitchDialPainter(
-                          p: p,
-                          video: videoRect,
-                          main: AppColors.purple,
-                          disc: AppColors.surface,
-                          muted: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
                 ],
               );
             },
@@ -169,99 +164,6 @@ double _smooth(double t, double a, double b) {
 }
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
-
-const _noteNames = [
-  'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', //
-];
-
-/// A ring of the twelve note names that turns from A to B (+2 semitones),
-/// then shrinks into the Studio's round upload badge as it fades out.
-class _PitchDialPainter extends CustomPainter {
-  final double p;
-  final Rect video;
-  final Color main;
-  final Color disc;
-  final Color muted;
-
-  _PitchDialPainter({
-    required this.p,
-    required this.video,
-    required this.main,
-    required this.disc,
-    required this.muted,
-  });
-
-  void _text(
-    Canvas canvas,
-    String text,
-    Offset center,
-    double size,
-    Color color,
-    FontWeight weight,
-  ) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(fontSize: size, color: color, fontWeight: weight),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final appear = _smooth(p, 0.05, 0.25);
-    final move = _smooth(p, 0.68, 0.95);
-    final fade = 1 - _smooth(p, 0.9, 1.0);
-    final alpha = appear * fade;
-    if (alpha <= 0) return;
-
-    final turn = _smooth(p, 0.25, 0.62) * 2; // semitones turned: A -> B
-    final start = Offset(
-      video.center.dx,
-      video.top + video.height * 0.502, // the logo's centre
-    );
-    final end = Offset(size.width / 2, size.height * 0.182); // upload badge
-    final c = Offset.lerp(start, end, move)!;
-    final big = size.width * 0.33;
-    final small = size.width * 0.075;
-    final r = _lerp(big, small, move) * appear;
-
-    canvas.drawCircle(
-      c,
-      r + (move < 0.5 ? 12 : 4) * size.height / 600,
-      Paint()..color = disc.withValues(alpha: alpha),
-    );
-    if (r < big * 0.45) return; // too small for note names
-
-    for (var i = 0; i < 12; i++) {
-      final a = (i - 9 - turn) * math.pi / 6 - math.pi / 2;
-      final pos = c + Offset(math.cos(a), math.sin(a)) * (r * 0.82);
-      final top = (i - 9 - turn).abs() < 0.5;
-      _text(
-        canvas,
-        _noteNames[i],
-        pos,
-        (top ? 16 : 11) * size.height / 600,
-        (top ? main : muted).withValues(alpha: alpha),
-        top ? FontWeight.w600 : FontWeight.w400,
-      );
-    }
-    _text(
-      canvas,
-      turn > 1.5 ? 'A \u2192 B' : 'A',
-      c,
-      19 * size.height / 600,
-      Colors.white.withValues(alpha: alpha),
-      FontWeight.w600,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PitchDialPainter old) =>
-      old.p != p || old.video != video;
-}
 
 /// Drifting music notes (vector-drawn, so no font support is needed) spread
 /// over the whole screen, faint and slowly twinkling, in the app's violet.
