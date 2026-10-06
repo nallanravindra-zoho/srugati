@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../theme/app_theme.dart';
 import 'home_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -69,7 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Center(
