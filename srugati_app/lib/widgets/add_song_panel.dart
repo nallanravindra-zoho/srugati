@@ -162,7 +162,7 @@ class AddSongPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'After adding, we’ll automatically detect:',
+                'After adding, you can choose to detect:',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),

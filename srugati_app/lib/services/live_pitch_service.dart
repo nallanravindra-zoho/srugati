@@ -147,7 +147,12 @@ class LivePitchService extends ChangeNotifier {
 
     final handle = SoLoud.instance.play(_source!);
     final pitchFilter = _source!.filters.pitchShiftFilter;
-    pitchFilter.activate();
+    try {
+      pitchFilter.activate();
+    } catch (_) {
+      // The filter stays attached to the source after a previous play, so a
+      // replay (song ended, training restart) finds it already active.
+    }
     _handle = handle;
     _pitchFilter = pitchFilter;
     _playing = true;

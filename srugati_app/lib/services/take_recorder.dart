@@ -61,7 +61,11 @@ class TakeRecorder {
     final path =
         '${dir.path}/take_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _rec.start(
-      const RecordConfig(echoCancel: true, noiseSuppress: true),
+      const RecordConfig(
+        autoGain: true,
+        echoCancel: false,
+        noiseSuppress: false,
+      ),
       path: path,
     );
     _active = true;

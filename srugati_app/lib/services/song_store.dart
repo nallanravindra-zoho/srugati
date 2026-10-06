@@ -178,11 +178,37 @@ class SongStore extends ChangeNotifier {
                 .map((e) => SongRecord.fromJson(e as Map<String, dynamic>))
                 .where((s) => File(s.path).existsSync()),
           );
+        await _migrateRecordings();
         notifyListeners();
       }
     } catch (_) {
       // A corrupt index just means starting with an empty library.
     }
+  }
+
+  /// Sing-along takes and mixes used to be stored as songs. They belong with
+  /// the Library's "Saved versions" (inline play), so move any old ones there.
+  Future<void> _migrateRecordings() async {
+    final docs = await getApplicationDocumentsDirectory();
+    final moved = <SongRecord>[];
+    for (final s in _songs) {
+      final isRecording =
+          s.originalTonic == null &&
+          (s.name.startsWith('Take - ') || s.name.startsWith('Mix - '));
+      if (!isRecording) continue;
+      try {
+        final dest = p.join(
+          docs.path,
+          '${s.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')}${p.extension(s.path)}',
+        );
+        await File(s.path).copy(dest);
+        await File(s.path).delete();
+        moved.add(s);
+      } catch (_) {}
+    }
+    if (moved.isEmpty) return;
+    _songs.removeWhere((s) => moved.contains(s));
+    await _save();
   }
 
   Future<void> _save() async {

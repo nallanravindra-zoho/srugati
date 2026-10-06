@@ -127,7 +127,9 @@ def mix_vocal_with_track(
     vocal_chain = (
         f"[1:a]aformat=channel_layouts=stereo,aresample={SAMPLE_RATE},"
         + (f"atrim=start={trim_sec},asetpts=PTS-STARTPTS," if trim_sec > 0 else "")
-        + f"adelay={delay_ms}|{delay_ms},volume={vocal_gain}[v]"
+        # Phone mic takes are quiet; bring the voice up to a normal level so it
+        # sits on top of a full-volume karaoke track.
+        + f"loudnorm=I=-13:TP=-1.5:LRA=9,adelay={delay_ms}|{delay_ms},volume={vocal_gain}[v]"
     )
     graph = f"{track_chain};{vocal_chain};[t][v]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.97[o]"
     codec_args = ["-c:a", codec]

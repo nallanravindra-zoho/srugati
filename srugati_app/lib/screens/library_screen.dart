@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../services/player_service.dart';
+
 import 'package:file_saver/file_saver.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,8 +43,7 @@ class LibraryScreenState extends State<LibraryScreen> {
   @override
   void initState() {
     super.initState();
-    SongStore.instance.load();
-    refresh();
+    SongStore.instance.load().then((_) => refresh());
   }
 
   /// Reloads the rendered "saved versions" (files produced by Save).
@@ -211,6 +213,18 @@ class LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Delete',
+                  onPressed: () async {
+                    if (await _confirmRemoveSong(s))
+                      SongStore.instance.remove(s);
+                  },
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                    size: 22,
+                  ),
+                ),
+                IconButton(
                   tooltip: 'Save to my device',
                   onPressed: () => _saveToDevice(s),
                   icon: Icon(
@@ -240,6 +254,86 @@ class LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmRemoveSong(SongRecord s) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete song?'),
+          content: Text(
+            '“${s.name}” and its saved settings will be deleted from your Library.',
+            style: const TextStyle(fontSize: 17),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _confirmDeleteVersion(FileSystemEntity f) async {
+    final name = p.basename(f.path);
+    final ok =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete saved version?'),
+            content: Text(
+              '“$name” will be deleted.',
+              style: const TextStyle(fontSize: 17),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    final service = PlayerService.instance;
+    if (service.isLoaded(f.path)) await service.pause();
+    try {
+      await File(f.path).delete();
+    } catch (_) {}
+    await refresh();
+  }
+
+  Future<void> _saveVersionToDevice(FileSystemEntity f) async {
+    final ext = p.extension(f.path).replaceFirst('.', '');
+    try {
+      await FileSaver.instance.saveAs(
+        name: p.basenameWithoutExtension(f.path),
+        filePath: f.path,
+        fileExtension: ext.isEmpty ? 'm4a' : ext,
+        mimeType: MimeType.other,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save to that location")),
+        );
+      }
+    }
   }
 
   Future<void> _saveToDevice(SongRecord s) async {
@@ -348,41 +442,68 @@ class LibraryScreenState extends State<LibraryScreen> {
                 if (_versions.isNotEmpty) ...[
                   _sectionTitle('Saved versions'),
                   for (final f in _versions) ...[
-                    if (_isVideoFile(f.path))
-                      Material(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        child: ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          leading: Icon(
-                            Icons.video_library_rounded,
-                            color: AppColors.purple,
-                          ),
-                          title: Text(
-                            p.basename(f.path),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Icon(
-                            Icons.play_circle_fill_rounded,
-                            color: AppColors.teal,
-                          ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => VideoPlayerScreen(path: f.path),
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (_) {
+                              if (_isVideoFile(f.path)) {
+                                return Material(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: ListTile(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    leading: Icon(
+                                      Icons.video_library_rounded,
+                                      color: AppColors.purple,
+                                    ),
+                                    title: Text(
+                                      p.basename(f.path),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: Icon(
+                                      Icons.play_circle_fill_rounded,
+                                      color: AppColors.teal,
+                                    ),
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            VideoPlayerScreen(path: f.path),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return MiniPlayerRow(
+                                key: ValueKey(f.path),
+                                path: f.path,
+                                title: p.basename(f.path),
+                              );
+                            },
                           ),
                         ),
-                      )
-                    else
-                      MiniPlayerRow(
-                        key: ValueKey(f.path),
-                        path: f.path,
-                        title: p.basename(f.path),
-                      ),
+                        IconButton(
+                          tooltip: 'Save to my device',
+                          onPressed: () => _saveVersionToDevice(f),
+                          icon: Icon(
+                            Icons.download_rounded,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDeleteVersion(f),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 10),
                   ],
                 ],
