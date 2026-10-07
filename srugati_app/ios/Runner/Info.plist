@@ -4,12 +4,22 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SruGati records your voice while you sing along to a song.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>SruGati lets you pick songs from your music library to change their key and tempo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SruGati lets you pick videos from your photo library so you can change their key and tempo.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Srugati App</string>
+	<string>SruGati</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -17,7 +27,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>srugati_app</string>
+	<string>SruGati</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
