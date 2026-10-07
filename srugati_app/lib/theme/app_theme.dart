@@ -29,6 +29,32 @@ class ThemePreset {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  /// Builds a whole scheme from one chosen colour. The colour sets the hue;
+  /// saturation and lightness are kept in a range that stays readable on the
+  /// dark surfaces, and the navy backgrounds are tinted with the same hue.
+  factory ThemePreset.fromColor(
+    Color base, {
+    String id = 'custom',
+    String name = 'Custom',
+  }) {
+    final hsl = HSLColor.fromColor(base);
+    final h = hsl.hue;
+    final s = hsl.saturation.clamp(0.45, 1.0);
+    final l = hsl.lightness.clamp(0.5, 0.8);
+    Color c(double hue, double sat, double light) =>
+        HSLColor.fromAHSL(1, hue % 360, sat, light).toColor();
+    return ThemePreset(
+      id: id,
+      name: name,
+      primary: c(h, s, l),
+      primaryDeep: c(h, s, (l - 0.2).clamp(0.3, 0.7)),
+      accent: c(h + 140, 0.7, 0.66),
+      background: c(h, 0.58, 0.10),
+      surface: c(h, 0.54, 0.17),
+      surfaceMuted: c(h, 0.5, 0.25),
+    );
+  }
 }
 
 const kThemePresets = <ThemePreset>[

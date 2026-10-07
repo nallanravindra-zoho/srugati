@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/theme_settings.dart';
 import '../theme/app_theme.dart';
+import 'custom_color_sheet.dart';
 
 /// Bottom sheet for choosing the app's colour preset.
 class ThemePickerSheet extends StatelessWidget {
@@ -53,7 +54,7 @@ class ThemePickerSheet extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Pick a colour scheme for the whole app.',
+                'Pick a colour scheme, or make your own.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 18),
@@ -110,6 +111,67 @@ class ThemePickerSheet extends StatelessWidget {
                         ),
                       ),
                     ),
+                  GestureDetector(
+                    onTap: () => CustomColorSheet.show(context),
+                    child: SizedBox(
+                      width: 92,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: current.surface,
+                              border: Border.all(
+                                color: current.id == 'custom'
+                                    ? Colors.white
+                                    : current.surfaceMuted,
+                                width: current.id == 'custom' ? 2.5 : 1.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: current.id == 'custom'
+                                      ? current.gradient
+                                      : const SweepGradient(
+                                          colors: [
+                                            Color(0xFFFF6B6B),
+                                            Color(0xFFFFD166),
+                                            Color(0xFF5BE3B0),
+                                            Color(0xFF4FB3FF),
+                                            Color(0xFF9A8CFF),
+                                            Color(0xFFF472B6),
+                                            Color(0xFFFF6B6B),
+                                          ],
+                                        ),
+                                ),
+                                child: Icon(
+                                  current.id == 'custom'
+                                      ? Icons.check_rounded
+                                      : Icons.colorize_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Custom',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
