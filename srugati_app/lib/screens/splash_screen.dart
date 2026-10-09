@@ -16,11 +16,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late VideoPlayerController _controller;
-  static const _zoomDuration = Duration(milliseconds: 700);
-  late final AnimationController _zoom = AnimationController(
-    vsync: this,
-    duration: _zoomDuration,
-  );
+  static const _waveDuration = Duration(milliseconds: 950);
   // Slow clock for the drifting music symbols that fill the whole screen.
   late final AnimationController _notes = AnimationController(
     vsync: this,
@@ -49,27 +45,24 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  /// Zoom through: the logo grows toward the viewer and fades while the
-  /// Studio eases in from slightly smaller. Both run on the same 0.7 s clock.
+  /// Grid wave: the Studio assembles itself from square tiles that pop up in a
+  /// diagonal wave over the splash (the tiles are a clip on the Studio page).
   void _goToHome() {
-    _zoom.forward();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: _zoomDuration,
+        transitionDuration: _waveDuration,
         pageBuilder: (_, __, ___) => const HomeShell(),
-        transitionsBuilder: (_, animation, __, child) {
-          final e = CurvedAnimation(
-            parent: animation,
-            curve: const Interval(0.1, 0.9, curve: Curves.easeInOut),
-          );
-          return FadeTransition(
-            opacity: e,
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.92, end: 1.0).animate(e),
-              child: child,
-            ),
-          );
-        },
+        transitionsBuilder: (_, animation, __, child) => AnimatedBuilder(
+          animation: animation,
+          // Same widget type before and after, so the Studio keeps its state;
+          // once the wave is done the clip is switched off.
+          builder: (_, c) => ClipPath(
+            clipper: _GridWaveClipper(animation),
+            clipBehavior: animation.isCompleted ? Clip.none : Clip.antiAlias,
+            child: c,
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -78,7 +71,6 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _controller.removeListener(_checkVideoFinished);
     _controller.dispose();
-    _zoom.dispose();
     _notes.dispose();
     super.dispose();
   }
@@ -88,11 +80,8 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: AnimatedBuilder(
-        animation: Listenable.merge([_zoom, _notes]),
+        animation: _notes,
         builder: (context, _) {
-          final p = _zoom.value;
-          final gone = 1 - _smooth(p, 0.1, 0.6); // logo fades as it grows
-          final grow = _lerp(1, 2.4, _smooth(p, 0.1, 0.9));
           if (!_controller.value.isInitialized) {
             return const Center(
               child: CircularProgressIndicator(color: Colors.white),
@@ -118,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen>
                       painter: _NotesPainter(
                         t: _notes.value,
                         color: AppColors.purple,
-                        fade: gone,
+                        fade: 1,
                       ),
                     ),
                   ),
@@ -139,12 +128,12 @@ class _SplashScreenState extends State<SplashScreen>
                         ],
                         stops: [0.0, 0.1, 0.9, 1.0],
                       ).createShader(b),
-                      child: Opacity(
-                        opacity: gone,
-                        child: Transform.scale(
-                          scale: grow,
-                          child: VideoPlayer(_controller),
+                      child: ColorFiltered(
+                        colorFilter: _themeTint(
+                          AppColors.background,
+                          AppColors.purple,
                         ),
+                        child: VideoPlayer(_controller),
                       ),
                     ),
                   ),
@@ -158,12 +147,65 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
+/// The splash video is a grey brightness map (black background, logo at 85%
+/// grey). This maps black to the app's background and 85% grey to the logo
+/// colour, so the video recolours with the active theme and its background is
+/// always exactly the app's background. Brighter-than-logo pixels (flame core,
+/// sparkles) go a little lighter than the logo colour.
+ColorFilter _themeTint(Color bg, Color fg) {
+  const gain = 0.85 * 255;
+  double k(double f, double b) => (f - b) * 255 / gain;
+  final r = bg.r * 255, g = bg.g * 255, b = bg.b * 255;
+  return ColorFilter.matrix(<double>[
+    k(fg.r, bg.r), 0, 0, 0, r, //
+    k(fg.g, bg.g), 0, 0, 0, g,
+    k(fg.b, bg.b), 0, 0, 0, b,
+    0, 0, 0, 1, 0,
+  ]);
+}
+
 double _smooth(double t, double a, double b) {
   final x = ((t - a) / (b - a)).clamp(0.0, 1.0);
   return x * x * (3 - 2 * x);
 }
 
-double _lerp(double a, double b, double t) => a + (b - a) * t;
+/// The Studio revealed as a grid of square tiles that grow from their centres,
+/// starting top-left and sweeping diagonally to the bottom-right.
+class _GridWaveClipper extends CustomClipper<Path> {
+  final Animation<double> t;
+
+  _GridWaveClipper(this.t) : super(reclip: t);
+
+  static const _cols = 6;
+
+  @override
+  Path getClip(Size size) {
+    final tile = size.width / _cols;
+    final rows = (size.height / tile).ceil();
+    final path = Path();
+    for (var i = 0; i < _cols; i++) {
+      for (var j = 0; j < rows; j++) {
+        final delay = (i + j) / (_cols + rows) * 0.5;
+        final s = _smooth(t.value, 0.05 + delay, 0.45 + delay);
+        if (s <= 0) continue;
+        final w = math.min(tile, size.width - i * tile);
+        final h = math.min(tile, size.height - j * tile);
+        final overlap = s >= 1 ? 1.0 : 0.0; // no hairline seams once grown
+        path.addRect(
+          Rect.fromCenter(
+            center: Offset(i * tile + w / 2, j * tile + h / 2),
+            width: w * s + overlap,
+            height: h * s + overlap,
+          ),
+        );
+      }
+    }
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _GridWaveClipper old) => true;
+}
 
 /// Drifting music notes (vector-drawn, so no font support is needed) spread
 /// over the whole screen, faint and slowly twinkling, in the app's violet.

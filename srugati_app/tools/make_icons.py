@@ -20,7 +20,7 @@ def wordmark():
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-sseof", "-0.3", "-i", "assets/srugati1.mp4",
                     "-frames:v", "1", frame], check=True)
     a = np.array(Image.open(frame).convert("RGB")).astype(float)
-    t = np.clip((a[..., 2] - 42) / (255 - 42), 0, 1)           # 0 = background, 1 = logo
+    t = np.clip(a[..., 0] / (0.85 * 255), 0, 1)                 # the video is a grey brightness map: 0 = background, 0.85 grey = logo
     alpha = np.clip((t - 0.10) / 0.22, 0, 1)
     x0, y0, x1, y1 = 80, 700, 1000, 1230
     al, tn = alpha[y0:y1, x0:x1], t[y0:y1, x0:x1]

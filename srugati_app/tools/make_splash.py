@@ -1,5 +1,6 @@
 """Rebuilds assets/srugati1.mp4 from the original black-background splash:
- - background -> app navy, music notes -> soft violet, logo -> solid app violet (#9A8CFF)
+ - rendered as a grey brightness map (black background, logo at 85% grey) that the app tints with the
+   current theme at runtime, so background and logo always match the chosen colours
  - the G's thick circle becomes a tabla: the circle is the head's gajra (braided rim), the maidan and
    syahi sit inside it, and the bowl with its straps hangs below (the S-strokes join at its top and bottom)
  - the flame above the "i" flickers like a candle (sway, stretch, glow, bright core), and the video is
@@ -21,6 +22,8 @@ R_CLEAR = 81.0                                  # the whole original ring is rep
 SS = 4                                          # supersampling for the tabla art
 TILT_DEG = 8.0                                 # the whole tabla leans left (head toward the "U"), pivoting on its base
 SHIFT_X = 10                                     # nudge right to keep clear of the U
+MORPH_FRAMES = 27                               # ring -> tabla morph length (0.9 s), starts once the G's ring is fully drawn
+LOGO_GAIN = 0.85                                # grey level that the app maps to the logo colour
 EXTRA_FRAMES = 36                               # extra ~1.2 s of burning flame after the original ends
 FPS = 30
 
@@ -176,18 +179,18 @@ def process(L_in, T, V, C, A, xx, t, presence):
     glow = np.exp(-(((xx2 - FCX) / 26.0) ** 2 + ((yy - FCY) / 34.0) ** 2)) * (0.16 + 0.10 * flick) * presence
     sl = (slice(FY0 - 40, FY1 + 40), slice(FX0 - 40, FX1 + 40))
     L[sl] = np.clip(L[sl] + glow * (1 - L[sl]), 0, 1)
-    L3 = L[..., None]
-    low = BG + (NOTE - BG) * np.clip(L3 / 0.5, 0, 1)
-    high = NOTE + (LOGO - NOTE) * np.clip((L3 - 0.5) / 0.5, 0, 1)
-    out = np.where(L3 <= 0.5, low, high)
-    # bright core inside the flame
+    # Output is a grey "brightness map", not colours: black = background, LOGO_GAIN = the logo colour,
+    # 1.0 = a touch brighter (flame core, sparkles). The app tints it at runtime with the active theme
+    # (ColorFilter in splash_screen.dart), so the video's background always matches the app's background.
+    g = np.clip(L, 0, 1) * LOGO_GAIN
     m = np.zeros_like(L)
     m[FY0:FY1, FX0:FX1] = (L[FY0:FY1, FX0:FX1] > 0.8)
     core = np.clip((ndimage.gaussian_filter(m, 4.0) - 0.62) / 0.3, 0, 1)
     rows = np.arange(core.shape[0])[:, None]
     core *= np.clip((FBASE - 8 - rows) / 28.0, 0, 1)             # core fades out toward the base, no hard edge
-    out = out * (1 - core[..., None] * 0.9) + CORE * (core[..., None] * 0.9)
-    return add_sparkles(Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)), t, presence)
+    g = g + (1 - g) * core * 0.9
+    img = Image.fromarray(np.clip(g * 255, 0, 255).astype(np.uint8)).convert("RGB")
+    return add_sparkles(img, t, presence).convert("L")
 
 
 def main():
@@ -207,13 +210,29 @@ def main():
     flame_final = (final_L[FY0:FY1, FX0:FX1] > 128).sum()
     os.makedirs(f"{tmp}/out", exist_ok=True)
     total = n + EXTRA_FRAMES
+
+    # When is the G's ring fully drawn? The morph into the tabla starts there.
+    covs = [np.clip(np.array(Image.open(f).convert("L"), float)[ring].mean() / ring_final, 0, 1) for f in frames]
+    f0 = next((k + 1 for k, c in enumerate(covs) if c >= 0.9), 1)
+    box = 280
+    bx0, by0 = int(CX - box / 2) + SHIFT_X, int(CY - box / 2)
+    T0, V0 = T[by0:by0 + box, bx0:bx0 + box].copy(), V[by0:by0 + box, bx0:bx0 + box].copy()
+    pivot = np.array([box / 2 + 77.0, box / 2])                    # centre of the tabla's base (row, col)
+
+    def grow(a, scale):                                             # scale the tabla about its base
+        return ndimage.affine_transform(a, np.eye(2) / scale, offset=pivot - pivot / scale, order=1)
     for i in range(1, total + 1):
         if preview and i != preview:
             continue
         im = Image.open(frames[min(i, n) - 1])
         L = np.array(im.convert("L"), float)
         cov = np.clip(L[ring].mean() / ring_final, 0, 1)
-        A = float(np.clip((cov - 0.4) / 0.3, 0, 1))             # cross-fade ring -> tabla as the ring draws in
+        # Gentle morph: once the ring is complete it dissolves into the tabla, which eases in from a bit smaller.
+        x = float(np.clip((i - f0) / MORPH_FRAMES, 0, 1)) if i <= n else 1.0
+        A = x * x * (3 - 2 * x)
+        sc = 0.86 + 0.14 * A
+        T[by0:by0 + box, bx0:bx0 + box] = grow(T0, sc)
+        V[by0:by0 + box, bx0:bx0 + box] = grow(V0, sc)
         presence = float(np.clip((L[FY0:FY1, FX0:FX1] > 128).sum() / flame_final, 0, 1))
         out = process(L / 255.0, T, V, C, A, xx, (i - 1) / FPS, presence)
         if preview:
