@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
@@ -58,6 +59,9 @@ String _formatBytes(int bytes) {
 class RemoverScreenState extends State<RemoverScreen> {
   _Stage _stage = _Stage.idle;
   _Phase _phase = _Phase.uploading;
+  DateTime?
+  _waitStart; // when the job was queued; drives the "warming up" creep
+  double _shown = 0; // overall progress shown, never allowed to go backwards
   double _uploadProgress = 0;
   double _separationProgress = 0;
   double _fetchProgress = 0;
@@ -157,12 +161,24 @@ class RemoverScreenState extends State<RemoverScreen> {
   /// Entry point for other screens (e.g. Studio's "Remove vocals").
   Future<void> startWithPath(String path, String title) => _start(path, title);
 
-  double get _overall => switch (_phase) {
+  double get _rawOverall => switch (_phase) {
     _Phase.uploading => 0.15 * _uploadProgress,
-    _Phase.queued => 0.18,
-    _Phase.separating => 0.18 + 0.70 * _separationProgress,
+    _Phase.queued => _warmCreep,
+    _Phase.separating =>
+      _separationProgress <= 0 ? _warmCreep : 0.21 + 0.67 * _separationProgress,
     _Phase.fetching => 0.88 + 0.12 * _fetchProgress,
   };
+
+  /// While waiting for the first real progress the ring creeps from 15% toward
+  /// about 21%, so it visibly moves instead of freezing.
+  double get _warmCreep {
+    final t = _waitStart == null
+        ? 0.0
+        : DateTime.now().difference(_waitStart!).inMilliseconds / 1000.0;
+    return 0.15 + 0.06 * (1 - math.exp(-t / 45));
+  }
+
+  double get _overall => math.max(_shown, _rawOverall);
 
   Future<void> _start(String path, String title) async {
     if (_stage == _Stage.working) return;
@@ -215,6 +231,8 @@ class RemoverScreenState extends State<RemoverScreen> {
       _separationProgress = 0;
       _fetchProgress = 0;
       _title = title;
+      _shown = 0;
+      _waitStart = null;
       _sizeLabel = '';
       _error = null;
       _current = null;
@@ -248,6 +266,7 @@ class RemoverScreenState extends State<RemoverScreen> {
       );
       if (_cancelled) return;
       await VocalRemoverApi.confirm(job.jobId, client: client);
+      _waitStart = DateTime.now();
       if (mounted) setState(() => _phase = _Phase.queued);
 
       StemJob status;
@@ -266,7 +285,12 @@ class RemoverScreenState extends State<RemoverScreen> {
           _phase = status.status == 'processing'
               ? _Phase.separating
               : _Phase.queued;
-          _separationProgress = status.progress / 100;
+          // Never go backwards: the separator can report a second, shorter pass.
+          _separationProgress = math.max(
+            _separationProgress,
+            status.progress / 100,
+          );
+          _shown = math.max(_shown, _rawOverall);
         });
       }
 
@@ -808,15 +832,18 @@ class RemoverScreenState extends State<RemoverScreen> {
   String get _phaseTitle => switch (_phase) {
     _Phase.uploading => 'Uploading your song',
     _Phase.queued => 'Waiting for a free AI core',
-    _Phase.separating => 'Separating vocals',
+    _Phase.separating =>
+      _separationProgress <= 0 ? 'Preparing your song' : 'Separating vocals',
     _Phase.fetching => 'Fetching your stems',
   };
 
   String get _phaseHint => switch (_phase) {
     _Phase.uploading => 'Sending it securely to the cloud…',
-    _Phase.queued =>
-      'Starting the separation engine — the first run can take a minute.',
-    _Phase.separating => 'The AI is pulling the voice apart from the music. Longer songs take longer.',
+    _Phase.queued => 'Waking up the AI and loading the model. This takes about a minute, then the progress starts moving.',
+    _Phase.separating =>
+      _separationProgress <= 0
+          ? 'Getting your song ready and loading the AI model. This takes about a minute, then the progress starts moving.'
+          : 'The AI is pulling the voice apart from the music. It takes roughly as long as the song itself.',
     _Phase.fetching => 'Almost there — bringing the stems to your phone.',
   };
 
