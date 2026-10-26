@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import 'studio_screen.dart';
 import 'library_screen.dart';
 import 'practice_screen.dart';
+import 'ragathoram_screen.dart';
 import 'remover_screen.dart';
 
 final GlobalKey<LibraryScreenState> libraryKey =
@@ -32,6 +33,7 @@ class _HomeShellState extends State<HomeShell> {
     LibraryScreen(key: libraryKey),
     PracticeScreen(),
     RemoverScreen(key: removerKey),
+    const RagaThoramScreen(),
   ];
 
   void _onBack() {
@@ -58,6 +60,7 @@ class _HomeShellState extends State<HomeShell> {
             bottomNavigationBar: NavigationBarTheme(
               data: NavigationBarThemeData(
                 height: 68,
+                labelPadding: EdgeInsets.zero,
                 backgroundColor: AppColors.surface,
                 indicatorColor: AppColors.purpleDeep,
                 indicatorShape: RoundedRectangleBorder(
@@ -72,7 +75,7 @@ class _HomeShellState extends State<HomeShell> {
                 ),
                 labelTextStyle: WidgetStateProperty.resolveWith(
                   (states) => TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: states.contains(WidgetState.selected)
                         ? FontWeight.w800
                         : FontWeight.w500,
@@ -101,6 +104,10 @@ class _HomeShellState extends State<HomeShell> {
                   NavigationDestination(
                     icon: Icon(Icons.auto_awesome_rounded),
                     label: 'Remover',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.queue_music_rounded),
+                    label: 'RagaThoram',
                   ),
                 ],
               ),
