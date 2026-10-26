@@ -34,3 +34,6 @@ vocal_remover_service/local-validation/
 vocal_remover_service/frontend/node_modules/
 vocal_remover_service/frontend/dist/
 **/__pycache__/
+
+# local demo files
+demo/
